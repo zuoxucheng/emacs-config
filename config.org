@@ -1,0 +1,774 @@
+# -*- lexical-binding: t; buffer-read-only: t -*-
+#+TITLE: ZUO's Emacs Config
+#+AUTHOR: Xucheng ZUO
+#+PROPERTY: header-args :results silent
+#+startup: num
+
+* Table of Contents :toc:
+- [[#before-configuration][Before Configuration]]
+- [[#qol-emacs-settings][QOL Emacs Settings]]
+  - [[#better-uivisuals][Better UI/visuals]]
+  - [[#better-prompt][Better prompt]]
+  - [[#better-completions][Better completions]]
+  - [[#better-navigation][Better navigation]]
+  - [[#better-misc][Better Misc]]
+- [[#built-in-packages-configurations][Built-in Packages Configurations]]
+  - [[#org][org]]
+  - [[#org-babel][org-babel]]
+  - [[#org-tempo][org-tempo]]
+  - [[#dired][dired]]
+  - [[#ibuffer][ibuffer]]
+  - [[#mode-line][mode-line]]
+- [[#custom-packages-configurations][Custom Packages Configurations]]
+  - [[#codeprogramming][Code/Programming]]
+  - [[#project-management][Project Management]]
+  - [[#visuals][Visuals]]
+  - [[#completion][Completion]]
+  - [[#navigation][Navigation]]
+  - [[#writing][Writing]]
+  - [[#llm][LLM]]
+  - [[#misc][Misc]]
+
+* Before Configuration
+#+begin_src emacs-lisp
+;; # -*- lexical-binding: t; -*-
+#+end_src
+
+* QOL Emacs Settings
+** Better UI/visuals
+#+begin_src emacs-lisp
+(setq inhibit-startup-message t)	;inhibit startup message
+(setq initial-scratch-message nil)	;inhibit scratch message
+(setopt use-short-answers t)	; "y" instead of "yes"
+(tool-bar-mode -1)			;no tool bar
+(menu-bar-mode -1)			;no menu bar
+(scroll-bar-mode -1)		;no scroll bar
+(blink-cursor-mode -1)		;stop cursor blink
+(global-hl-line-mode 1)		;highlight current line
+(setq window-divider-default-places t)	;a thin line to divide windows
+(setq window-divider-default-bottom-width 1) ;set that line width to 1 pixel
+(setq window-divider-default-right-width 1)
+(window-divider-mode 1)			;enable the divider line
+;use C-C <left> or <right> to regret window arrangementa
+(winner-mode 1)
+(setq fit-window-to-buffer-horizontally t) ;allow C-x w - to adjust window horizontally
+#+end_src
+
+** Better prompt
+#+begin_src emacs-lisp
+(repeat-mode 1)
+#+end_src
+
+** Better completions
+#+begin_src emacs-lisp
+;; pair brackets and quotes automatically
+(electric-pair-mode 1)
+(setq electric-pair-inhibit-predicate
+      (lambda (char)
+  	(or (member char '(?< ?{))
+  	    (electric-pair-default-inhibit char))))
+
+;; case-insensitive completion
+(setq completion-ignore-case t)
+(setq read-file-name-completion-ignore-case t)
+(setq read-buffer-completion-ignore-case t)
+#+end_src
+
+#+begin_src emacs-lisp
+(setq completion-eager-display t)	;show completion buffer while typing
+(setq completion-eager-update t)	;update completion buffer while typing
+
+(setq completion-pcm-leading-wildcard nil) ;fuzzy
+
+(setq minibuffer-visible-completions 'up-down) ;up-down for completion, left-right for pre/nex inputs
+
+(setq completions-format 'one-column)	;show in completion in single column
+
+(setq completions-sort 'historical)	;Sort by recent use                                 
+
+(setq completion-styles '(basic partial-completion flex)) ;Good completion styles, work for vertico
+
+(add-hook 'prog-mode-hook #'completion-preview-mode) ;Ghost text preview in buffers
+#+end_src
+
+** Better navigation
+#+begin_src emacs-lisp
+(setq help-window-select t)
+#+end_src
+
+** Better Misc
+#+begin_src emacs-lisp
+(set-default-coding-systems 'utf-8)
+(setq backup-directory-alist '(("." . "~/.emacs-dev/tmp/backups/")))
+(setq auto-save-file-name-transforms '((".*" "~/.emacs-dev/tmp/auto-saves/" t)))
+(setq version-control t)     ;; Use version numbers for backups
+(setq kept-new-versions 10)  ;; Keep the 10 most recent versions
+(setq kept-old-versions 2)   ;; Keep the 2 oldest versions (the originals)
+(setq delete-old-versions t) ;; Delete excess backups silently (don't ask)
+
+
+(setopt quit-window-kill-buffer t)
+(setopt kill-buffer-quit-windows t)
+
+;; Some custom keybinds
+(global-set-key (kbd "C-c s s") 'scratch-buffer)
+#+end_src
+
+* Built-in Packages Configurations
+** org
+#+begin_src emacs-lisp
+(defun my/org-visual-setup ()
+  "My custom visual settings that run whenever Org mode starts."
+  (visual-line-mode 1)
+  (visual-fill-column-mode 1)
+  (setq-local visual-fill-column-width 100)
+  (setq-local visual-fill-column-center-text t)
+  (setq org-startup-indented t)		;equal to M-x org-indent-mode on buffers
+  )
+
+(add-hook 'org-mode-hook		;this custom hook hide *ALL* stars in org headings.
+          (lambda ()
+            (font-lock-add-keywords
+             nil
+             '(("^\\(\\*+\\)[ \t]+" (1 '(face org-hide) t))))))
+
+(add-hook 'org-mode-hook #'my/org-visual-setup)
+#+end_src
+
+** org-babel
+#+begin_src emacs-lisp
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((python . t)
+   (emacs-lisp . t)
+   (R . t)
+   (shell . t)))               
+
+(setq python-indent-offset 4)
+(setq org-confirm-babel-evaluate nil)
+(setq org-src-preserve-indentation t)
+#+end_src
+
+** org-tempo
+#+begin_src emacs-lisp
+(require 'org-tempo)
+(setq org-structure-template-alist
+      '(("a" . "export ascii")
+	("c" . "center")
+	("C" . "comment")
+	("e" . "example")
+	("E" . "export")
+	("h" . "export html")
+	("k" . "src kdl")
+	("l" . "export latex")
+	("q" . "quote")
+	("s" . "src")
+	("v" . "verse")
+	("el" . "src emacs-lisp")
+	("p" . "src python")
+	("r" . "src R")
+	("b" . "src bash")))
+#+end_src
+
+** dired
+#+begin_src emacs-lisp
+(use-package dired
+  :ensure nil
+  :bind (:map dired-mode-map
+              ("." . dired-omit-mode)
+              ("b" . dired-up-directory))
+  :config
+  (add-hook 'dired-mode-hook #'dired-hide-details-mode)
+  (add-hook 'dired-mode-hook #'dired-omit-mode)
+  (setq delete-by-moving-to-trash t)
+  (setq dired-free-space nil)		;hide (XX GiB available for better width control)
+  
+  ;; this will remove dired-omit-mode toggle when you go back and forth
+  ;; we will see how annoying this gets. might keep it, might remove it.
+  (setq dired-kill-when-opening-new-dired-buffer t)
+  
+  (setq dired-omit-files "^\\.?#\\|^\\.$\\|^\\.\\.$\\|^\\..*$")
+  (setq dired-listing-switches "-alhv"))
+#+end_src
+
+** ibuffer
+#+begin_src emacs-lisp
+(use-package ibuffer
+  :ensure nil
+  :config
+  (define-ibuffer-column size-h
+    (:name "Size" :inline t)
+    (cond
+     ((> (buffer-size) 1000000) (format "%7.1fM" (/ (buffer-size) 1000000.0)))
+     ((> (buffer-size) 100000) (format "%7.0fk" (/ (buffer-size) 1000.0)))
+     ((> (buffer-size) 1000) (format "%7.1fk" (/ (buffer-size) 1000.0)))
+     (t (format "%8d" (buffer-size)))))
+  (setq ibuffer-expert t)
+  (setq ibuffer-display-summary nil)
+  (setq ibuffer-use-other-window nil)
+  (setq ibuffer-show-empty-filter-groups nil)
+  (setq ibuffer-default-sorting-mode 'filename/process)
+  (setq ibuffer-title-face 'font-lock-doc-face)
+  (setq ibuffer-use-header-line t)
+  (setq ibuffer-default-shrink-to-minimum-size t)
+  (setq ibuffer-formats
+        '((mark modified read-only locked " "
+                (name 10 10 :left :elide)
+                " "
+                (size-h 9 -1 :right)
+                " "
+                (mode 16 16 :left :elide)
+                " " filename-and-process)
+          (mark " "
+                (name 16 -1)
+                " " filename)))
+  (setq ibuffer-saved-filter-groups
+        '(("Main"
+           ("Directories" (mode . dired-mode))
+           ("Python" (or
+                      (mode . python-ts-mode)
+                      (mode . c-mode)
+                      (mode . python-mode)))
+           ("Scripts" (or
+                       (mode . shell-script-mode)
+                       (mode . shell-mode)
+                       (mode . sh-mode)
+                       (mode . bat-mode)))
+           ("Config" (or
+                      (mode . conf-mode)
+                      (mode . conf-toml-mode)
+                      (mode . toml-ts-mode)
+                      (name . "^\\.gitignore$")
+                      (name . "^config\\.toml$")
+                      (mode . yaml-mode)))
+           ("Markup" (or
+                   (mode . markdown-mode)))
+           ("Org" (mode . org-mode))
+           ("LaTeX" (name . "\.tex$"))
+           ("Magit" (or
+                     (mode . magit-blame-mode)
+                     (mode . magit-cherry-mode)
+                     (mode . magit-diff-mode)
+                     (mode . magit-log-mode)
+                     (mode . magit-process-mode)
+                     (mode . magit-status-mode)))
+           ("Apps" (or
+                    (mode . elfeed-search-mode)
+                    (mode . elfeed-show-mode)))
+           ("Fundamental" (or
+                           (mode . fundamental-mode)
+                           (mode . text-mode)))
+           ("Emacs" (or
+                     (mode . emacs-lisp-mode)
+                     (name . "^\\*Help\\*$")
+                     (name . "^\\*Custom.*")
+                     (name . "^\\*Org Agenda\\*$")
+                     (name . "^\\*info\\*$")
+                     (name . "^\\*scratch\\*$")
+                     (name . "^\\*Backtrace\\*$")
+                     (name . "^\\*Messages\\*$"))))))
+  :hook
+  (ibuffer-mode . (lambda ()
+                    (ibuffer-switch-to-saved-filter-groups "Main")))
+  )
+
+(global-set-key (kbd "C-x C-b") 'ibuffer)
+#+end_src
+
+** mode-line
+#+begin_src emacs-lisp
+(setq display-time-format "%Y-%m-%d %H:%M")
+(setq display-time-default-load-average nil)
+(display-time-mode 1)
+
+;; Checks if the hostname is exactly "LAPTOP" (case-sensitive)
+(when (string= (system-name) "LAPTOP")
+  (setq battery-mode-line-format "%b%p%%")
+  (display-battery-mode 1))
+
+(defun my-minimal-header-line ()
+  "Render a custom header line, manually calculating spaces to defeat margins."
+  (let* ((left (format-mode-line
+                '(" "
+                  ;; Buffer modified status
+                  mode-line-modified "  "
+                  ;; Buffer name
+                  (:propertize "%b" face mode-line-buffer-id) "  "
+                  ;; Buffer size (restored)
+                  "%I  "
+                  ;; Line and column
+                  "%l:%o%%"
+                  )))
+         (right (format-mode-line
+                 '((:eval (when (bound-and-true-p org-timer-mode-line-string)
+                            (concat org-timer-mode-line-string " · ")))
+                   (:eval (when (and (bound-and-true-p battery-mode-line-string)
+                                     (not (string-empty-p battery-mode-line-string)))
+                            (concat battery-mode-line-string " · ")))
+                   ;; Time string (trimming leading spaces)
+                   (:eval (string-trim (or display-time-string "")))
+                   " ")))
+         (total-width (window-total-width))
+         (left-width (string-width left))
+         (right-width (string-width right))
+         (space-width (max 0 (- total-width left-width right-width)))
+         (padding (make-string space-width ?\s)))
+    (concat left padding right)))
+
+(setq-default header-line-format nil)
+(setq-default mode-line-format nil)
+
+(set-face-attribute 'header-line nil 
+                    :inherit 'mode-line 
+                    :background 'unspecified 
+                    :foreground 'unspecified 
+                    :box 'unspecified
+                    :overline 'unspecified
+                    :underline 'unspecified)
+
+(defun my/toggle-top-mode-line ()
+  "Toggle the visibility of the custom top mode line (header line)."
+  (interactive)
+  (if (default-value 'header-line-format)
+      (setq-default header-line-format nil) 
+    (setq-default header-line-format '(:eval (my-minimal-header-line))))
+  (force-mode-line-update t))
+
+(global-set-key (kbd "C-c m") #'my/toggle-top-mode-line)
+#+end_src
+
+* Custom Packages Configurations
+** Code/Programming
+*** vterm
+#+begin_src emacs-lisp
+(use-package vterm
+  :ensure t)
+(use-package multi-vterm
+  :ensure t
+  :bind (("C-c v t" . multi-vterm)))
+#+end_src
+
+*** kdl-mode
+#+begin_src emacs-lisp
+(use-package kdl-mode
+  :ensure t)
+#+end_src
+
+*** python
+#+begin_src emacs-lisp
+(add-to-list 'exec-path (expand-file-name "~/.local/bin"))
+
+(use-package uv-mode
+  :hook (python-mode . uv-mode-auto-activate-hook))
+
+(use-package ruff-format
+  :hook (python-mode . ruff-format-on-save-mode))
+#+end_src 
+
+** Project Management
+*** magit
+#+begin_src emacs-lisp
+(use-package transient
+  :ensure t)
+(use-package magit
+  :ensure t)
+#+end_src
+
+** Visuals
+*** theme
+#+begin_src emacs-lisp
+(use-package gruvbox-theme
+  :ensure t
+  :config
+  ;; Define the toggle function inside the config so it's ready when needed
+  (defun my/toggle-gruvbox-theme ()
+    "Toggle between Gruvbox Dark and Light modes."
+    (interactive)
+    (if (custom-theme-enabled-p 'gruvbox-dark-medium)
+        (progn
+          (disable-theme 'gruvbox-dark-medium)
+          (load-theme 'gruvbox-light-medium t)
+          (message "Switched to Gruvbox Light"))
+      (progn
+        (disable-theme 'gruvbox-light-medium)
+        (load-theme 'gruvbox-dark-medium t)
+        (message "Switched to Gruvbox Dark"))))
+  
+  ;; Bind the toggle key
+  (global-set-key (kbd "C-c t") 'my/toggle-gruvbox-theme)
+  ;; Load the theme safely
+  (load-theme 'gruvbox-dark-medium t)
+  ;;Deal with Japanese spaces
+  (set-face-attribute 'nobreak-space nil :foreground nil :background nil :underline nil)
+  )
+#+end_src
+
+I directly modified some lines in ~/.emacs.d/elpa/gruvbox-theme-1.30.1/gruvbox.el to fix some bugs with the development version of Emacs (since 31) and org-mode (9.8). Find and replace code in that file with these.
+
+This will fix the circulate inherit issue.
+#+begin_src emacs-lisp
+;; (gnus-group-news-low         (:weight 'bold :foreground gruvbox-dark4))
+;; (gnus-group-news-low-empty   (:weight 'normal :foreground gruvbox-dark4))
+#+end_src
+
+This will make org headings look prettier.
+#+begin_src emacs-lisp
+;; (org-level-1                               (:foreground gruvbox-light1 :height 1.2 :weight 'bold)) ;gruvbox-bright_blue))
+;; (org-level-2                               (:foreground gruvbox-light1 :weight 'bold :underline t)) ;gruvbox-bright_yellow))
+;; (org-level-3                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_purple))
+;; (org-level-4                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_red))
+;; (org-level-5                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_green))
+;; (org-level-6                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_aqua))
+;; (org-level-7                               (:foreground gruvbox-bright_blue)) ;gruvbox-faded_blue))
+;; (org-level-8                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_orange))
+#+end_src
+
+*** fonts
+#+begin_src emacs-lisp
+(defun efs/set-font-faces ()
+  (message "Setting faces!")
+  (let ((font-size (cond ((string= (system-name) "LAPTOP") 100)
+                         ((string= (system-name) "arch") 120)
+                         (t 100)))) 
+                         
+    (set-face-attribute 'default nil 
+                        :height font-size :weight 'regular :family "JetBrains Mono NF")
+    (set-face-attribute 'fixed-pitch nil 
+                        :height font-size :weight 'regular :family "JetBrains Mono NF")
+    
+    (set-fontset-font t 'kana (font-spec :family "Noto Sans Mono CJK JP"))
+    (set-fontset-font t 'han (font-spec :family "Noto Sans Mono CJK JP"))
+    (set-fontset-font t 'cjk-misc (font-spec :family "Noto Sans Mono CJK SC"))
+    (add-to-list 'face-font-rescale-alist '("Noto Sans Mono CJK SC" . 0.95))
+    (add-to-list 'face-font-rescale-alist '("Noto Sans Mono CJK JP" . 0.95))))
+
+(if (daemonp)
+    (add-hook 'after-make-frame-functions
+              (lambda (frame)
+                (with-selected-frame frame
+                  (efs/set-font-faces))))
+  (efs/set-font-faces))
+#+end_src
+
+*** visual-fill-column
+#+begin_src emacs-lisp
+(use-package visual-fill-column
+  :ensure t
+  :custom
+  (visual-fill-column-fringes-outside-margins nil)
+  (visual-fill-column-adjust-for-text-scale nil)
+  )
+
+(setq word-wrap-by-category t)
+(add-hook 'visual-line-mode-hook #'visual-fill-column-mode)
+
+(global-set-key (kbd "C-c v l") 'visual-line-mode)
+(global-set-key (kbd "C-c v f") 'visual-fill-column-mode)
+(global-set-key (kbd "C-c v c") 'visual-fill-column-toggle-center-text)
+#+end_src
+
+*** org-modern
+#+begin_src emacs-lisp
+(use-package org-modern
+  :after org
+  :ensure t
+  :config
+  (global-org-modern-mode)
+  (setq
+   org-modern-todo nil
+   org-modern-block-name t
+   org-modern-block-fringe 4
+   org-ellipsis " …"
+   line-spacing 0.1
+   org-auto-align-tags nil
+   org-tags-column 0
+   org-catch-invisible-edits 'show
+   org-pretty-entities nil
+   org-hide-emphasis-markers t))
+#+end_src
+
+*** org-modern-indent
+Org modern will disable pre
+#+begin_src emacs-lisp
+(use-package org-modern-indent
+  :vc (:url "https://github.com/jdtsmith/org-modern-indent"
+       :branch "main"
+       :rev :newest)
+  :config ; add late to hook
+  (add-hook 'org-mode-hook #'org-modern-indent-mode 90))
+#+end_src
+
+** Completion
+*** vertico
+#+begin_src emacs-lisp
+(use-package vertico
+  :ensure t
+  :config
+  (vertico-mode))
+#+end_src
+
+*** marginalia
+#+begin_src emacs-lisp
+(use-package marginalia
+  :ensure t
+  :commands (marginalia-mode marginalia-cycle)
+  :hook (after-init . marginalia-mode))
+#+end_src
+
+** Navigation
+*** multiple-cursors
+#+begin_src emacs-lisp
+(use-package multiple-cursors
+  :ensure t)
+
+(global-set-key (kbd "C->") 'mc/mark-next-like-this)
+(global-set-key (kbd "C-<") 'mc/mark-previous-like-this)
+(global-set-key (kbd "C-c C-<") 'mc/mark-all-like-this)
+#+end_src
+
+*** avy
+#+begin_src emacs-lisp
+(use-package avy
+  :ensure t
+  :bind (("M-'" . avy-goto-char-timer)
+         ("M-l" . avy-goto-line))
+  )
+#+end_src
+
+*** toc-org
+#+begin_src emacs-lisp
+(use-package toc-org
+  :ensure t
+  :commands toc-org-enable
+  :init (add-hook 'org-mode-hook 'toc-org-enable))
+#+end_src
+
+*** popper
+#+begin_src emacs-lisp
+(use-package popper
+  :ensure t
+  :demand t
+  :bind (("C-|"   . popper-toggle)
+         ("M-|"   . popper-cycle)
+         ("C-M-|" . popper-toggle-type))
+  :init
+  (setq popper-reference-buffers
+        '("\\*Messages\\*"
+          "Output\\*$"
+          "\\*Async Shell Command\\*"
+          help-mode
+          compilation-mode
+          dired-mode
+          inferior-python-mode))
+
+  (setq popper-reference-buffers
+        (append popper-reference-buffers
+                '("^\\*eshell.*\\*$" eshell-mode
+                  "^\\*shell.*\\*$"  shell-mode
+                  "^\\*term.*\\*$"   term-mode
+                  "^\\*vterm.*\\*$"  vterm-mode)))
+  
+  :config
+  (popper-mode +1)
+  (popper-echo-mode +1)
+
+  (add-to-list 'display-buffer-alist
+               '((derived-mode . inferior-python-mode)
+                 (display-buffer-in-side-window)
+                 (side . right)
+                 (window-width . 0.33)))
+
+  (add-to-list 'display-buffer-alist
+               '((derived-mode . dired-mode)
+                 (display-buffer-in-side-window)
+                 (side . left)
+                 (window-width . 20))))
+#+end_src
+
+** Writing
+*** org-journal
+#+begin_src emacs-lisp
+(use-package org-journal
+  :ensure t
+  :init
+  (setq org-journal-prefix-key "C-c j")
+  :config
+  (setq org-journal-dir "~/Org/Journal/"
+        org-journal-date-format "%A, %d %B %Y"
+        ;; org-journal-carryover-items "TODO"
+        org-journal-time-format "%R     "
+        org-journal-hide-entries-p nil)
+
+  (add-hook 'org-journal-mode-hook
+            (lambda ()
+	      (org-indent-mode -1)	;if org-startup-indent is t
+              (let ((h (face-attribute 'default :height)))
+                (face-remap-add-relative 'org-level-2 :height h :underline nil)
+                (face-remap-add-relative 'org-level-3 :height h)
+                (face-remap-add-relative 'org-level-4 :height h)
+                (face-remap-add-relative 'org-level-5 :height h)
+                (face-remap-add-relative 'org-level-6 :height h)
+                (face-remap-add-relative 'org-level-7 :height h)
+                (face-remap-add-relative 'org-level-8 :height h))
+              ;; Visual-only indentation for body text using display properties.
+              ;; line-prefix: body lines start at col 10 visually.
+              ;; wrap-prefix: visual-line-mode continuation lines also at col 12.
+              ;; The font-lock matcher skips heading lines (*) so org-modern
+              ;; continues to handle star concealment on those untouched.
+              (let ((prefix (make-string 12 ?\s)))
+                (setq-local font-lock-extra-managed-props
+                            (append '(line-prefix wrap-prefix)
+                                    font-lock-extra-managed-props))
+                (font-lock-add-keywords nil
+					`(((lambda (limit)
+					     (when (re-search-forward "^[^*\n]" limit t)
+					       (let ((beg (line-beginning-position))
+						     (end (min (line-beginning-position 2) (point-max))))
+						 (put-text-property beg end 'line-prefix ,prefix)
+						 (put-text-property beg end 'wrap-prefix ,prefix)
+						 (goto-char end)
+						 (set-match-data (list beg end))
+						 t)))
+					   (0 nil)))))
+              (font-lock-flush))))
+
+(global-set-key (kbd "C-c j") 'org-journal-new-entry)
+#+end_src
+
+*** org-roam
+#+begin_src emacs-lisp
+(use-package org-roam
+  :ensure t
+  :custom
+  (org-roam-directory (file-truename "~/Org/Notes/"))
+  :bind (("C-c n l" . org-roam-buffer-toggle)
+         ("C-c n f" . org-roam-node-find)
+         ("C-c n i" . org-roam-node-insert))
+  :config
+  (org-roam-db-autosync-mode)
+  ;; templates
+  (setq org-roam-capture-templates
+        '(("k" "knowledge" plain "%?"
+           :if-new (file+head "~/Org/Notes/Knowledge/%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n")
+           :unnarrowed t)
+          ("c" "capture" plain "%?"
+           :if-new (file+head "~/Org/Notes/Capture/%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n")
+           :unnarrowed t)
+          )
+        )
+  ;; If using org-roam-protocol
+  (require 'org-roam-protocol))
+#+end_src
+
+*** jinx
+Install enchant and a hunspell dictionary on Linux first.
+#+begin_src bash
+sudo pacman -S enchant hunspell hunspell-en_us
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package jinx
+  :ensure t
+  :hook (emacs-startup . global-jinx-mode)
+  :bind (("C-S-s" . jinx-correct))         ; Correct word at point
+  :config
+  (setf (alist-get t jinx-exclude-regexps)
+        (append (alist-get t jinx-exclude-regexps)
+                '(".*[^[:ascii:]].*"))))
+#+end_src
+
+*** auctex
+#+begin_src emacs-lisp
+(use-package auctex
+  :defer t
+  :config
+  (setq-default TeX-engine 'ptexplatex
+                TeX-PDF-mode t
+                TeX-parse-self t
+                TeX-auto-save t
+                TeX-source-correlate-mode t)
+  (setq TeX-view-program-selection '((output-pdf "Zathura"))))
+#+end_src
+
+** LLM
+Ollama-cuda must be installed on the system and ollama.service need to be enabled.
+*** gptel
+#+begin_src emacs-lisp
+(use-package gptel
+  :ensure t
+  :config
+  (setq
+   gptel-model 'gemma4:31b-cloud
+   gptel-backend
+   (gptel-make-ollama "Ollama (local)"
+     :host "localhost:11434"
+     :stream t
+     :models '((translategemma:4b)
+               (gemma4:e4b)
+               (gemma4:31b-cloud)))
+   gptel-default-mode 'org-mode)
+
+  :bind
+  ("C-c g" . gptel)
+  )
+#+end_src 
+
+*** gptel-quick
+#+begin_src emacs-lisp
+(use-package gptel-quick
+  :ensure t
+  :vc "https://github.com/karthink/gptel-quick"
+  :after gptel
+  :bind ("C-c q" . gptel-quick)
+  :config
+  (let ((ollama-backend (gptel-make-ollama "Ollama"
+                          :host "localhost:11434"
+                          :stream t
+                          :models '("gemma4:31b-cloud"))))
+    
+    ;; Both must be set together to avoid the error
+    (setq gptel-quick-backend ollama-backend
+          gptel-quick-model "gemma4:31b-cloud"))
+  (setq gptel-quick-timeout 3600)
+  )
+#+end_src
+
+** Misc
+*** Emacs as app launcher
+Run the command to open a minibuffer to launch apps. This won't work well without vertico.
+#+begin_src emacs-lisp
+(use-package xdg-launcher
+  :ensure t
+  :vc (:url "https://github.com/emacs-exwm/xdg-launcher" :rev :newest)) ;newest is important in this case
+
+;; create a global keyboard shortcut in the window manager config which runs the following command
+;; emacsclient -cF "((visibility . nil))" -e "(emacs-run-launcher)"
+
+(defun emacs-run-launcher ()
+  "Create and select a frame called emacs-run-launcher which consists only of a minibuffer and has specific dimensions. Runs app-launcher-run-app on that frame, which is an emacs command that prompts you to select an app and open it in a dmenu like behaviour. Delete the frame after that command has exited"
+  (interactive)
+  (with-selected-frame 
+      (make-frame '((name . "emacs-run-launcher")
+                    (minibuffer . only)
+                    (fullscreen . 0) ; no fullscreen
+                    (undecorated . t) ; remove title bar
+                    (auto-raise . t) ; focus on this frame
+                    (tool-bar-lines . 0)
+                    (menu-bar-lines . 0)
+                    (internal-border-width . 10)
+                    (width . 80)
+                    (height . 11)))
+    (unwind-protect
+        (xdg-launcher-run-app)
+      (delete-frame))))
+(provide 'app-launchers)
+#+end_src
+
+*** uniline
+#+begin_src emacs-lisp
+(use-package uniline
+  :ensure t
+  :bind ("C-c u" . uniline-mode))
+#+end_src
