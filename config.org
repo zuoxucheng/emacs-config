@@ -185,7 +185,7 @@
   
   ;; this will remove dired-omit-mode toggle when you go back and forth
   ;; we will see how annoying this gets. might keep it, might remove it.
-  (setq dired-kill-when-opening-new-dired-buffer t)
+  ;; (setq dired-kill-when-opening-new-dired-buffer t)
   
   (setq dired-omit-files "^\\.?#\\|^\\.$\\|^\\.\\.$\\|^\\..*$")
   (setq dired-listing-switches "-alhv"))
@@ -403,7 +403,7 @@
   )
 #+end_src
 
-I directly modified some lines in ~/.emacs.d/elpa/gruvbox-theme-1.30.1/gruvbox.el to fix some bugs with the development version of Emacs (since 31) and org-mode (9.8). Find and replace code in that file with these.
+I directly modified some lines in ~/.emacs.d/elpa/gruvbox-theme-1.30.1/gruvbox.el to fix some bugs with the development version of Emacs (since 31) and org-mode (9.8). Find and replace code in that file with these. Then, delete all .elc files in that directory.
 
 This will fix the circulate inherit issue.
 #+begin_src emacs-lisp

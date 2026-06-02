@@ -14,7 +14,12 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(package-selected-packages nil)
+ '(ignored-local-variable-values '((eval when (fboundp 'rainbow-mode) (rainbow-mode 1))))
+ '(package-selected-packages
+   '(avy gptel-quick gruvbox-theme jinx kdl-mode magit marginalia
+	 multi-vterm multiple-cursors org-journal org-modern
+	 org-modern-indent org-roam popper toc-org tramp uniline
+	 vertico visual-fill-column xdg-launcher))
  '(package-vc-selected-packages
    '((gptel-quick :url "https://github.com/karthink/gptel-quick")
      (xdg-launcher :url "https://github.com/emacs-exwm/xdg-launcher"))))
