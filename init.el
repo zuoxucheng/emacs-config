@@ -16,10 +16,10 @@
  ;; If there is more than one, they won't work right.
  '(ignored-local-variable-values '((eval when (fboundp 'rainbow-mode) (rainbow-mode 1))))
  '(package-selected-packages
-   '(avy gptel-quick gruvbox-theme jinx kdl-mode magit marginalia
+   '(avy denote gptel-quick gruvbox-theme jinx kdl-mode magit marginalia
 	 multi-vterm multiple-cursors org-journal org-modern
-	 org-modern-indent org-roam popper toc-org tramp uniline
-	 vertico visual-fill-column xdg-launcher))
+	 org-modern-indent org-roam popper ruff-format toc-org tramp
+	 uniline uv-mode vertico visual-fill-column xdg-launcher))
  '(package-vc-selected-packages
    '((gptel-quick :url "https://github.com/karthink/gptel-quick")
      (xdg-launcher :url "https://github.com/emacs-exwm/xdg-launcher"))))

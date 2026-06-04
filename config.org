@@ -359,9 +359,11 @@
 (add-to-list 'exec-path (expand-file-name "~/.local/bin"))
 
 (use-package uv-mode
+  :ensure t
   :hook (python-mode . uv-mode-auto-activate-hook))
 
 (use-package ruff-format
+  :ensure t
   :hook (python-mode . ruff-format-on-save-mode))
 #+end_src 
 
@@ -660,6 +662,29 @@ Org modern will disable pre
         )
   ;; If using org-roam-protocol
   (require 'org-roam-protocol))
+#+end_src
+
+*** denote
+#+begin_src emacs-lisp
+(use-package denote
+  :ensure t
+  :hook (dired-mode . denote-dired-mode)
+  :bind
+  (("C-c n n" . denote)
+   ("C-c n o" . denote-open-or-create)
+   ("C-c n r" . denote-rename-file)
+   ("C-c n l" . denote-link)
+   ("C-c n b" . denote-backlinks)
+   ("C-c n d" . denote-dired)
+   ("C-c n g" . denote-grep))
+  :config
+  (setq denote-directory (expand-file-name "~/Documents/notes/"))
+
+  ;; Automatically rename Denote buffers when opening them so that
+  ;; instead of their long file name they have, for example, a literal
+  ;; "[D]" followed by the file's title.  Read the docstring of
+  ;; `denote-rename-buffer-format' for how to modify this.
+  (denote-rename-buffer-mode 1))
 #+end_src
 
 *** jinx
