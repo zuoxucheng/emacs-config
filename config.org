@@ -595,7 +595,7 @@ Org modern will disable pre
   :init
   (setq org-journal-prefix-key "C-c j")
   :config
-  (setq org-journal-dir "~/Org/Journal/"
+  (setq org-journal-dir "~/Documents/Journal/"
         org-journal-date-format "%A, %d %B %Y"
         ;; org-journal-carryover-items "TODO"
         org-journal-time-format "%R     "
