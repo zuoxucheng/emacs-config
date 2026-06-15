@@ -137,6 +137,10 @@
              '(("^\\(\\*+\\)[ \t]+" (1 '(face org-hide) t))))))
 
 (add-hook 'org-mode-hook #'my/org-visual-setup)
+(with-eval-after-load 'org
+  (define-key org-mode-map (kbd "M-TAB") #'lsp-bridge-popup-complete-menu)
+  (define-key org-mode-map (kbd "<M-tab>") #'lsp-bridge-popup-complete-menu)
+  (define-key org-mode-map (kbd "C-M-i") #'lsp-bridge-popup-complete-menu))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -162,11 +166,11 @@
 (setq org-src-tab-acts-natively t)
 
 ;; need test: does it matter
-;; (add-to-list 'org-src-lang-modes
-;;              `("python" . ,(if (and (fboundp 'treesit-language-available-p)
-;;                                     (treesit-language-available-p 'python))
-;;                                'python-ts
-;;                              'python)))
+(add-to-list 'org-src-lang-modes
+             `("python" . ,(if (and (fboundp 'treesit-language-available-p)
+                                    (treesit-language-available-p 'python))
+                               'python-ts
+                             'python)))
 
 ;; probably not needed
 ;; (setq org-babel-default-header-args
@@ -174,8 +178,8 @@
 ;;                 (:mkdirp . "yes"))
 ;;               org-babel-default-header-args))
 
-;; can be replaced by :results graphics file
-;; (add-hook 'org-babel-after-execute-hook #'org-display-inline-images)
+
+(add-hook 'org-babel-after-execute-hook #'org-display-inline-images)
 
 ;; see if we need that in a .py only workflow
 ;; (with-eval-after-load 'org
@@ -198,7 +202,7 @@
 	("s" . "src")
 	("v" . "verse")
 	("el" . "src emacs-lisp")
-	("p" . "src python")
+	("pq" . "src python")		;python quick
 	("r" . "src R")
 	("b" . "src bash")))
 #+end_src
@@ -433,6 +437,11 @@
   (yas-global-mode 1))
 #+end_src
 
+#+begin_src emacs-lisp
+(use-package yasnippet-snippets
+  :ensure t)
+#+end_src
+
 *** lsp-bridge
 #+begin_src emacs-lisp
 (use-package lsp-bridge
@@ -442,8 +451,8 @@
   :after yasnippet
   :custom
   (lsp-bridge-enable-org-babel t)
-  (lsp-bridge-org-babel-lang-list '("python"))
   (lsp-bridge-complete-manually t)
+  (lsp-bridge-code-action-enable-popup-menu nil)
   :config
   (global-lsp-bridge-mode))
 #+end_src
@@ -472,7 +481,8 @@
 (use-package python
   :ensure nil
   :hook
-  ((python-mode python-ts-mode) . display-line-numbers-mode))
+  ((python-mode python-ts-mode) . display-line-numbers-mode)
+  ((python-mode python-ts-mode) . code-cells-mode))
 #+end_src
 
 **** uv-mode
