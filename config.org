@@ -54,6 +54,7 @@
 ;use C-C <left> or <right> to regret window arrangementa
 (winner-mode 1)
 (setq fit-window-to-buffer-horizontally t) ;allow C-x w - to adjust window horizontally
+(setq display-line-numbers-type 'relative)
 #+end_src
 
 ** Better prompt
@@ -557,6 +558,12 @@ This will make org headings look prettier.
 ;; (org-level-6                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_aqua))
 ;; (org-level-7                               (:foreground gruvbox-bright_blue)) ;gruvbox-faded_blue))
 ;; (org-level-8                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_orange))
+#+end_src
+
+This will make the line numbers look prettier.
+#+begin_src emacs-lisp
+;; (line-number                               (:foreground gruvbox-dark4 :background gruvbox-bg))
+;; (line-number-current-line                  (:foreground gruvbox-bright_orange :background gruvbox-dark1))
 #+end_src
 
 *** fonts
