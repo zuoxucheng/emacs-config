@@ -49,6 +49,8 @@
 (setq window-divider-default-bottom-width 1) ;set that line width to 1 pixel
 (setq window-divider-default-right-width 1)
 (window-divider-mode 1)			;enable the divider line
+(setq display-buffer-base-action	;don't split exising windows
+      '((display-buffer-reuse-window display-buffer-use-some-window)))
 ;use C-C <left> or <right> to regret window arrangementa
 (winner-mode 1)
 (setq fit-window-to-buffer-horizontally t) ;allow C-x w - to adjust window horizontally
@@ -72,6 +74,8 @@
 (setq completion-ignore-case t)
 (setq read-file-name-completion-ignore-case t)
 (setq read-buffer-completion-ignore-case t)
+;; first try tab, then complete
+(setq tab-always-indent 'complete)
 #+end_src
 
 #+begin_src emacs-lisp
@@ -135,6 +139,13 @@
 (add-hook 'org-mode-hook #'my/org-visual-setup)
 #+end_src
 
+#+begin_src emacs-lisp
+(with-eval-after-load 'ox-latex
+  (setq org-latex-pdf-process
+        '("lualatex -interaction=nonstopmode -output-directory=%o %f"
+          "lualatex -interaction=nonstopmode -output-directory=%o %f")))
+#+end_src
+
 ** org-babel
 #+begin_src emacs-lisp
 (org-babel-do-load-languages
@@ -142,11 +153,33 @@
  '((python . t)
    (emacs-lisp . t)
    (R . t)
-   (shell . t)))               
+   (shell . t)))
 
 (setq python-indent-offset 4)
 (setq org-confirm-babel-evaluate nil)
 (setq org-src-preserve-indentation t)
+(setq org-src-fontify-natively t)
+(setq org-src-tab-acts-natively t)
+
+;; need test: does it matter
+;; (add-to-list 'org-src-lang-modes
+;;              `("python" . ,(if (and (fboundp 'treesit-language-available-p)
+;;                                     (treesit-language-available-p 'python))
+;;                                'python-ts
+;;                              'python)))
+
+;; probably not needed
+;; (setq org-babel-default-header-args
+;;       (append '((:comments . "link")
+;;                 (:mkdirp . "yes"))
+;;               org-babel-default-header-args))
+
+;; can be replaced by :results graphics file
+;; (add-hook 'org-babel-after-execute-hook #'org-display-inline-images)
+
+;; see if we need that in a .py only workflow
+;; (with-eval-after-load 'org
+;;   (define-key org-mode-map (kbd "C-c C-t") #'org-babel-tangle))
 #+end_src
 
 ** org-tempo
@@ -354,18 +387,109 @@
   :ensure t)
 #+end_src
 
-*** python
+*** code-cells
 #+begin_src emacs-lisp
-(add-to-list 'exec-path (expand-file-name "~/.local/bin"))
+(use-package code-cells
+  :ensure t
+  :commands (code-cells-mode code-cells-mode-maybe)
+  :config
+  (define-key code-cells-mode-map (kbd "M-p") #'code-cells-backward-cell)
+  (define-key code-cells-mode-map (kbd "M-n") #'code-cells-forward-cell)
+  (define-key code-cells-mode-map (kbd "C-c C-c") #'code-cells-eval))
+#+end_src
 
+*** eldoc
+#+begin_src emacs-lisp
+(use-package eldoc
+  :ensure nil
+  :custom
+  (eldoc-idle-delay most-positive-fixnum)
+  (eldoc-echo-area-use-multiline-p nil)
+  :bind
+  ("C-c d" . eldoc))
+#+end_src
+
+*** apheleia
+#+begin_src emacs-lisp
+(use-package apheleia
+  :ensure t
+  :config
+  (setf (alist-get 'python-mode apheleia-mode-alist) '(ruff))
+  (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff))
+  (apheleia-global-mode +1))
+#+end_src
+
+*** markdown-mode
+#+begin_src emacs-lisp
+(use-package markdown-mode
+  :ensure t)
+#+end_src
+
+*** yasnippet
+#+begin_src emacs-lisp
+(use-package yasnippet
+  :ensure t
+  :config
+  (yas-global-mode 1))
+#+end_src
+
+*** lsp-bridge
+#+begin_src emacs-lisp
+(use-package lsp-bridge
+  :vc (:url "https://github.com/manateelazycat/lsp-bridge"
+       :rev :newest
+       :branch "master")
+  :after yasnippet
+  :custom
+  (lsp-bridge-enable-org-babel t)
+  (lsp-bridge-org-babel-lang-list '("python"))
+  (lsp-bridge-complete-manually t)
+  :config
+  (global-lsp-bridge-mode))
+#+end_src
+
+*** Python Settings
+**** python workflow helpers
+#+begin_src emacs-lisp
+;;; Python: prefer tree-sitter mode when available
+(when (and (fboundp 'treesit-available-p)
+           (treesit-available-p)
+           (treesit-language-available-p 'python))
+  (add-to-list 'major-mode-remap-alist
+               '(python-mode . python-ts-mode)))
+
+;;; IPython shell
+(when (executable-find "ipython3")
+  (setq python-shell-interpreter "ipython3"
+        python-shell-interpreter-args "--simple-prompt --classic"))
+
+;;; Do not visually wrap Python shell buffers
+(add-hook 'inferior-python-mode-hook #'toggle-truncate-lines)
+#+end_src
+
+**** python hooks
+#+begin_src emacs-lisp
+(use-package python
+  :ensure nil
+  :hook
+  ((python-mode python-ts-mode) . display-line-numbers-mode))
+#+end_src
+
+**** uv-mode
+#+begin_src emacs-lisp
 (use-package uv-mode
   :ensure t
-  :hook (python-mode . uv-mode-auto-activate-hook))
+  :hook
+  ((python-mode python-ts-mode) . uv-mode-auto-activate-hook))
+#+end_src
 
-(use-package ruff-format
+**** comint-mime
+#+begin_src emacs-lisp
+(use-package comint-mime
   :ensure t
-  :hook (python-mode . ruff-format-on-save-mode))
-#+end_src 
+  :hook
+  (inferior-python-mode . comint-mime-setup))
+#+end_src
 
 ** Project Management
 *** magit
@@ -517,6 +641,30 @@ Org modern will disable pre
   :hook (after-init . marginalia-mode))
 #+end_src
 
+*** yasnippet
+#+begin_src emacs-lisp
+(use-package yasnippet
+  :ensure t)
+#+end_src
+
+*** corfu
+#+begin_src emacs-lisp
+(use-package corfu
+  :ensure t
+  :custom
+  (corfu-cycle t)                ;; Cycle candidates
+  ;(corfu-preview-current nil)    ;; Do not preview current candidate
+  (corfu-preselect 'prompt)
+  (corfu-on-exact-match nil)     ;; Do not auto-expand exact matches
+  :bind
+  (:map corfu-map
+        ("TAB" . corfu-insert)
+        ([tab] . corfu-insert)
+        ("RET" . nil))           ;; Keep RET for newline
+  :init
+  (global-corfu-mode))
+#+end_src
+
 ** Navigation
 *** multiple-cursors
 #+begin_src emacs-lisp
@@ -557,6 +705,7 @@ Org modern will disable pre
   (setq popper-reference-buffers
         '("\\*Messages\\*"
           "Output\\*$"
+	  "\\*eldoc\\*"
           "\\*Async Shell Command\\*"
           help-mode
           compilation-mode
