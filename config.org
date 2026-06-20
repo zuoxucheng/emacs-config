@@ -45,7 +45,7 @@
 (scroll-bar-mode -1)		;no scroll bar
 (blink-cursor-mode -1)		;stop cursor blink
 (global-hl-line-mode 1)		;highlight current line
-(setq window-divider-default-places t)	;a thin line to divide windows
+(setq windowo-divider-default-places t)	;a thin line to divide windows
 (setq window-divider-default-bottom-width 1) ;set that line width to 1 pixel
 (setq window-divider-default-right-width 1)
 (window-divider-mode 1)			;enable the divider line
@@ -220,11 +220,10 @@
   (add-hook 'dired-mode-hook #'dired-omit-mode)
   (setq delete-by-moving-to-trash t)
   (setq dired-free-space nil)		;hide (XX GiB available for better width control)
-  
+  (setq dired-hide-details-hide-absolute-location t)
   ;; this will remove dired-omit-mode toggle when you go back and forth
   ;; we will see how annoying this gets. might keep it, might remove it.
   ;; (setq dired-kill-when-opening-new-dired-buffer t)
-  
   (setq dired-omit-files "^\\.?#\\|^\\.$\\|^\\.\\.$\\|^\\..*$")
   (setq dired-listing-switches "-alhv"))
 #+end_src
@@ -519,30 +518,30 @@
 ** Visuals
 *** theme
 #+begin_src emacs-lisp
-(use-package gruvbox-theme
-  :ensure t
-  :config
-  ;; Define the toggle function inside the config so it's ready when needed
-  (defun my/toggle-gruvbox-theme ()
-    "Toggle between Gruvbox Dark and Light modes."
-    (interactive)
-    (if (custom-theme-enabled-p 'gruvbox-dark-medium)
-        (progn
-          (disable-theme 'gruvbox-dark-medium)
-          (load-theme 'gruvbox-light-medium t)
-          (message "Switched to Gruvbox Light"))
-      (progn
-        (disable-theme 'gruvbox-light-medium)
-        (load-theme 'gruvbox-dark-medium t)
-        (message "Switched to Gruvbox Dark"))))
-  
-  ;; Bind the toggle key
-  (global-set-key (kbd "C-c t") 'my/toggle-gruvbox-theme)
-  ;; Load the theme safely
-  (load-theme 'gruvbox-dark-medium t)
-  ;;Deal with Japanese spaces
-  (set-face-attribute 'nobreak-space nil :foreground nil :background nil :underline nil)
-  )
+;; (use-package gruvbox-theme
+;;   :ensure t
+;;   :config
+;;   ;; Define the toggle function inside the config so it's ready when needed
+;;   (defun my/toggle-gruvbox-theme ()
+;;     "Toggle between Gruvbox Dark and Light modes."
+;;     (interactive)
+;;     (if (custom-theme-enabled-p 'gruvbox-dark-medium)
+;;         (progn
+;;           (disable-theme 'gruvbox-dark-medium)
+;;           (load-theme 'gruvbox-light-medium t)
+;;           (message "Switched to Gruvbox Light"))
+;;       (progn
+;;         (disable-theme 'gruvbox-light-medium)
+;;         (load-theme 'gruvbox-dark-medium t)
+;;         (message "Switched to Gruvbox Dark"))))
+
+;;   ;; Bind the toggle key
+;;   (global-set-key (kbd "C-c t") 'my/toggle-gruvbox-theme)
+;;   ;; Load the theme safely
+;;   (load-theme 'gruvbox-dark-medium t)
+;;   ;;Deal with Japanese spaces
+;;   (set-face-attribute 'nobreak-space nil :foreground nil :background nil :underline nil)
+;;   )
 #+end_src
 
 I directly modified some lines in ~/.emacs.d/elpa/gruvbox-theme-1.30.1/gruvbox.el to fix some bugs with the development version of Emacs (since 31) and org-mode (9.8). Find and replace code in that file with these. Then, delete all .elc files in that directory.
@@ -570,6 +569,96 @@ This will make the line numbers look prettier.
 ;; (line-number                               (:foreground gruvbox-dark4 :background gruvbox-bg))
 ;; (line-number-current-line                  (:foreground gruvbox-bright_orange :background gruvbox-dark1))
 #+end_src
+
+The solution without touching the package's source code:
+Load Gruvbox without enabling it, replace the problematic and customized face definitions while they are inert, and only then enable the theme. This avoids the Emacs 31 Gnus face-inheritance cycle.
+#+begin_src emacs-lisp
+(use-package gruvbox-theme
+  :ensure t
+  :config
+  (defconst my/gruvbox-palettes
+    '((gruvbox-dark-medium
+       :foreground "#ebdbb2"
+       :blue       "#83a598"
+       :muted      "#7c6f64"
+       :orange     "#fe8019")
+      (gruvbox-light-medium
+       :foreground "#3c3836"
+       :blue       "#076678"
+       :muted      "#a89984"
+       :orange     "#af3a03")))
+
+  (defun my/gruvbox-apply-overrides (theme)
+    "Correct and customize Gruvbox THEME before enabling it."
+    (let* ((palette (cdr (assq theme my/gruvbox-palettes)))
+           (foreground (plist-get palette :foreground))
+           (blue (plist-get palette :blue))
+           (muted (plist-get palette :muted))
+           (orange (plist-get palette :orange))
+           (faces
+            `((gnus-group-news-low
+               ((t (:weight bold :foreground ,muted))))
+              (gnus-group-news-low-empty
+               ((t (:weight normal :foreground ,muted))))
+
+              (org-level-1
+               ((t (:foreground ,foreground :height 1.2 :weight bold))))
+              (org-level-2
+               ((t (:foreground ,foreground :weight bold :underline t))))
+              (org-level-3 ((t (:foreground ,blue))))
+              (org-level-4 ((t (:foreground ,blue))))
+              (org-level-5 ((t (:foreground ,blue))))
+              (org-level-6 ((t (:foreground ,blue))))
+              (org-level-7 ((t (:foreground ,blue))))
+              (org-level-8 ((t (:foreground ,blue))))
+
+              (line-number
+               ((t (:inherit default
+                    :foreground ,muted
+                    :background unspecified))))
+              (line-number-current-line
+               ((t (:inherit hl-line
+                    :foreground ,orange
+                    :background unspecified))))
+
+              (nobreak-space
+               ((t (:foreground unspecified
+                    :background unspecified
+                    :underline nil)))))))
+      ;; Autothemer can leave more than one setting for a face.  Remove
+      ;; every old Gruvbox entry first, otherwise a stale entry can win
+      ;; when `enable-theme' processes the theme settings.
+      (dolist (face (mapcar #'car faces))
+        (put face 'theme-face
+             (assq-delete-all theme (get face 'theme-face))))
+      (put theme 'theme-settings
+           (seq-remove
+            (lambda (setting)
+              (and (eq (car setting) 'theme-face)
+                   (memq (cadr setting) (mapcar #'car faces))))
+            (get theme 'theme-settings)))
+      (apply #'custom-theme-set-faces theme faces)))
+
+  (defun my/load-gruvbox-theme (theme)
+    "Load, correct, and enable Gruvbox THEME."
+    (mapc #'disable-theme (copy-sequence custom-enabled-themes))
+    (load-theme theme t t)
+    (my/gruvbox-apply-overrides theme)
+    (enable-theme theme))
+
+  (defun my/toggle-gruvbox-theme ()
+    "Toggle between medium dark and light Gruvbox."
+    (interactive)
+    (my/load-gruvbox-theme
+     (if (custom-theme-enabled-p 'gruvbox-dark-medium)
+         'gruvbox-light-medium
+       'gruvbox-dark-medium)))
+
+  (global-set-key (kbd "C-c t") #'my/toggle-gruvbox-theme)
+  (my/load-gruvbox-theme 'gruvbox-dark-medium)
+  )
+#+end_src
+
 
 *** fonts
 #+begin_src emacs-lisp
