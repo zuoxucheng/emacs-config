@@ -15,6 +15,10 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(ignored-local-variable-values '((eval when (fboundp 'rainbow-mode) (rainbow-mode 1))))
+ '(org-format-latex-options
+   '(:foreground default :background default :scale 2.0 :html-foreground
+		 "Black" :html-background "Transparent" :html-scale
+		 1.0 :matchers ("begin" "$1" "$" "$$" "\\(" "\\[")))
  '(package-selected-packages
    '(apheleia avy code-cells comint-mime company corfu denote gptel-quick
 	      gruvbox-theme jinx jupyter kdl-mode lsp-bridge lsp-mode

@@ -483,7 +483,12 @@
   :ensure nil
   :hook
   ((python-mode python-ts-mode) . display-line-numbers-mode)
-  ((python-mode python-ts-mode) . code-cells-mode))
+  ((python-mode python-ts-mode) . code-cells-mode)
+  :bind
+  (:map python-ts-mode-map
+	("C-c C-b" . python-shell-send-buffer)
+	("C-c C-x" . python-shell-restart))
+  )
 #+end_src
 
 **** uv-mode
