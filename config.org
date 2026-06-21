@@ -214,7 +214,8 @@
   :ensure nil
   :bind (:map dired-mode-map
               ("." . dired-omit-mode)
-              ("b" . dired-up-directory))
+              ("b" . dired-up-directory)
+	      ("z" . fit-window-to-buffer))
   :config
   (add-hook 'dired-mode-hook #'dired-hide-details-mode)
   (add-hook 'dired-mode-hook #'dired-omit-mode)
@@ -515,6 +516,13 @@
   :ensure t)
 #+end_src
 
+*** dired-du
+#+begin_src emacs-lisp
+(use-package dired-du
+  :ensure t)
+(add-hook 'dired-mode-hook #'dired-du-mode)
+#+end_src
+
 ** Visuals
 *** theme
 #+begin_src emacs-lisp
@@ -665,7 +673,7 @@ Load Gruvbox without enabling it, replace the problematic and customized face de
 (defun efs/set-font-faces ()
   (message "Setting faces!")
   (let ((font-size (cond ((string= (system-name) "LAPTOP") 100)
-                         ((string= (system-name) "arch") 120)
+                         ((string= (system-name) "arch") 140)
                          (t 100)))) 
                          
     (set-face-attribute 'default nil 
