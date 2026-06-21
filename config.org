@@ -520,7 +520,6 @@
 #+begin_src emacs-lisp
 (use-package dired-du
   :ensure t)
-(add-hook 'dired-mode-hook #'dired-du-mode)
 #+end_src
 
 ** Visuals
