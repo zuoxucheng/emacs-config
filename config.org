@@ -60,6 +60,7 @@
 ** Better prompt
 #+begin_src emacs-lisp
 (repeat-mode 1)
+(put 'other-window 'repeat-map nil)
 #+end_src
 
 ** Better completions
@@ -68,7 +69,7 @@
 (electric-pair-mode 1)
 (setq electric-pair-inhibit-predicate
       (lambda (char)
-  	(or (member char '(?< ?{))
+  	(or (member char '(?< ?{) )
   	    (electric-pair-default-inhibit char))))
 
 ;; case-insensitive completion
@@ -99,6 +100,7 @@
 ** Better navigation
 #+begin_src emacs-lisp
 (setq help-window-select t)
+(global-set-key (kbd "C-o") #'other-window)
 #+end_src
 
 ** Better Misc
@@ -114,6 +116,7 @@
 
 (setopt quit-window-kill-buffer t)
 (setopt kill-buffer-quit-windows t)
+(global-set-key (kbd "C-x k") #'kill-current-buffer)
 
 ;; Some custom keybinds
 (global-set-key (kbd "C-c s s") 'scratch-buffer)
@@ -215,7 +218,9 @@
   :bind (:map dired-mode-map
               ("." . dired-omit-mode)
               ("b" . dired-up-directory)
-	      ("z" . fit-window-to-buffer))
+	      ("z" . fit-window-to-buffer)
+	      ("M-o" . dired-display-file) ;originally C-o
+	      ("C-o" . other-winow))
   :config
   (add-hook 'dired-mode-hook #'dired-hide-details-mode)
   (add-hook 'dired-mode-hook #'dired-omit-mode)
@@ -561,14 +566,14 @@ This will fix the circulate inherit issue.
 
 This will make org headings look prettier.
 #+begin_src emacs-lisp
-;; (org-level-1                               (:foreground gruvbox-light1 :height 1.2 :weight 'bold)) ;gruvbox-bright_blue))
-;; (org-level-2                               (:foreground gruvbox-light1 :weight 'bold :underline t)) ;gruvbox-bright_yellow))
-;; (org-level-3                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_purple))
-;; (org-level-4                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_red))
-;; (org-level-5                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_green))
-;; (org-level-6                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_aqua))
-;; (org-level-7                               (:foreground gruvbox-bright_blue)) ;gruvbox-faded_blue))
-;; (org-level-8                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_orange))
+;; (org-level-1                               (:foreground gruvbox-light1 :height 1.2 :weight 'bold)) ;gruvbox-bright_blue
+;; (org-level-2                               (:foreground gruvbox-light1 :weight 'bold :underline t)) ;gruvbox-bright_yellow
+;; (org-level-3                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_purple
+;; (org-level-4                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_red
+;; (org-level-5                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_green
+;; (org-level-6                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_aqua
+;; (org-level-7                               (:foreground gruvbox-bright_blue)) ;gruvbox-faded_blue
+;; (org-level-8                               (:foreground gruvbox-bright_blue)) ;gruvbox-bright_orange
 #+end_src
 
 This will make the line numbers look prettier.
@@ -866,7 +871,12 @@ Org modern will disable pre
         org-journal-date-format "%A, %d %B %Y"
         ;; org-journal-carryover-items "TODO"
         org-journal-time-format "%R     "
-        org-journal-hide-entries-p nil)
+        org-journal-hide-entries-p nil
+	;; ignore existing display-buffer settings
+	org-journal-find-file
+        (lambda (&rest args)
+          (let ((display-buffer-base-action nil))
+            (apply #'find-file-other-window args))))
 
   (add-hook 'org-journal-mode-hook
             (lambda ()
