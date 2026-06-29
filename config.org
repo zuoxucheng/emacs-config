@@ -20,12 +20,12 @@
   - [[#ibuffer][ibuffer]]
   - [[#mode-line][mode-line]]
 - [[#custom-packages-configurations][Custom Packages Configurations]]
-  - [[#codeprogramming][Code/Programming]]
+  - [[#code--programming][Code / Programming]]
   - [[#project-management][Project Management]]
   - [[#visuals][Visuals]]
   - [[#completion][Completion]]
   - [[#navigation][Navigation]]
-  - [[#writing][Writing]]
+  - [[#writing--publication][Writing / Publication]]
   - [[#llm][LLM]]
   - [[#misc][Misc]]
 
@@ -78,6 +78,7 @@
 (setq read-buffer-completion-ignore-case t)
 ;; first try tab, then complete
 (setq tab-always-indent 'complete)
+(setopt text-mode-ispell-word-completion nil) ;no more ispell errors
 #+end_src
 
 #+begin_src emacs-lisp
@@ -101,6 +102,12 @@
 #+begin_src emacs-lisp
 (setq help-window-select t)
 (global-set-key (kbd "C-o") #'other-window)
+
+(with-eval-after-load 'simple
+  (defun goto-line-relative (line &optional buffer interactive)
+    "Go to LINE, counting from line at (point-min)."
+    (interactive (append (goto-line-read-args t) '(t)))
+    (goto-line line buffer t interactive)))
 #+end_src
 
 ** Better Misc
@@ -161,7 +168,8 @@
  '((python . t)
    (emacs-lisp . t)
    (R . t)
-   (shell . t)))
+   (shell . t)
+   (dot . t)))
 
 (setq python-indent-offset 4)
 (setq org-confirm-babel-evaluate nil)
@@ -197,6 +205,7 @@
       '(("a" . "export ascii")
 	("c" . "center")
 	("C" . "comment")
+	("n" . "note")
 	("e" . "example")
 	("E" . "export")
 	("h" . "export html")
@@ -208,28 +217,33 @@
 	("el" . "src emacs-lisp")
 	("pq" . "src python")		;python quick
 	("r" . "src R")
-	("b" . "src bash")))
+	("b" . "src bash")
+	("d" . "src dot")))
 #+end_src
 
 ** dired
 #+begin_src emacs-lisp
 (use-package dired
   :ensure nil
+  :preface
+  (defun my/dired-toggle-details-and-fit-window ()
+    "Toggle Dired details, then fit the window to the buffer."
+    (interactive)
+    (dired-hide-details-mode 'toggle)
+    (fit-window-to-buffer))
   :bind (:map dired-mode-map
               ("." . dired-omit-mode)
               ("b" . dired-up-directory)
-	      ("z" . fit-window-to-buffer)
-	      ("M-o" . dired-display-file) ;originally C-o
-	      ("C-o" . other-winow))
+              ("z" . fit-window-to-buffer)
+              ("(" . my/dired-toggle-details-and-fit-window)
+              ("M-o" . dired-display-file)
+              ("C-o" . other-window))
   :config
   (add-hook 'dired-mode-hook #'dired-hide-details-mode)
   (add-hook 'dired-mode-hook #'dired-omit-mode)
   (setq delete-by-moving-to-trash t)
-  (setq dired-free-space nil)		;hide (XX GiB available for better width control)
+  (setq dired-free-space nil)
   (setq dired-hide-details-hide-absolute-location t)
-  ;; this will remove dired-omit-mode toggle when you go back and forth
-  ;; we will see how annoying this gets. might keep it, might remove it.
-  ;; (setq dired-kill-when-opening-new-dired-buffer t)
   (setq dired-omit-files "^\\.?#\\|^\\.$\\|^\\.\\.$\\|^\\..*$")
   (setq dired-listing-switches "-alhv"))
 #+end_src
@@ -381,7 +395,7 @@
 #+end_src
 
 * Custom Packages Configurations
-** Code/Programming
+** Code / Programming
 *** vterm
 #+begin_src emacs-lisp
 (use-package vterm
@@ -671,7 +685,6 @@ Load Gruvbox without enabling it, replace the problematic and customized face de
   )
 #+end_src
 
-
 *** fonts
 #+begin_src emacs-lisp
 (defun efs/set-font-faces ()
@@ -745,6 +758,12 @@ Org modern will disable pre
        :rev :newest)
   :config ; add late to hook
   (add-hook 'org-mode-hook #'org-modern-indent-mode 90))
+#+end_src
+
+*** valign
+#+begin_src emacs-lisp
+(use-package valign
+  :ensure t)
 #+end_src
 
 ** Completion
@@ -830,6 +849,7 @@ Org modern will disable pre
           "Output\\*$"
 	  "\\*eldoc\\*"
           "\\*Async Shell Command\\*"
+	  "\\*gptel-translate\\*"
           help-mode
           compilation-mode
           dired-mode
@@ -859,7 +879,7 @@ Org modern will disable pre
                  (window-width . 20))))
 #+end_src
 
-** Writing
+** Writing / Publication
 *** org-journal
 #+begin_src emacs-lisp
 (use-package org-journal
@@ -994,6 +1014,24 @@ sudo pacman -S enchant hunspell hunspell-en_us
   (setq TeX-view-program-selection '((output-pdf "Zathura"))))
 #+end_src
 
+*** impatient-mode
+#+begin_src emacs-lisp
+(use-package simple-httpd
+  :ensure t)
+
+(use-package impatient-mode
+  :ensure t)
+
+(use-package autorevert
+  :ensure nil
+  :hook ((html-mode . auto-revert-mode))
+  :custom
+  (auto-revert-interval 0.5)
+  (auto-revert-verbose nil))
+
+(setq org-link-file-path-type 'relative)
+#+end_src
+
 ** LLM
 Ollama-cuda must be installed on the system and ollama.service need to be enabled.
 *** gptel
@@ -1015,7 +1053,39 @@ Ollama-cuda must be installed on the system and ollama.service need to be enable
   :bind
   ("C-c g" . gptel)
   )
-#+end_src 
+
+(defvar my/gptel-translate-buffer-name "*gptel-translate*")
+
+(defvar my/gptel-translate-system-prompt
+  "Respond concisely. Translate the user's text naturally and accurately.
+If the input is Japanese, translate it to English and Chinese.
+If the input is English, translate it to Japanese and Chinese.
+Keep technical terms precise. If text is a single word, provide dictionary-like information and give example sentence.")
+
+(defun my/gptel-translate-buffer ()
+  "Translate region or word at point in a dedicated gptel buffer."
+  (interactive)
+  (require 'gptel)
+  (let ((text
+         (if (use-region-p)
+             (buffer-substring-no-properties (region-beginning) (region-end))
+           (thing-at-point 'word t))))
+    (unless text
+      (user-error "No region or word at point"))
+    (let ((buf (gptel my/gptel-translate-buffer-name nil nil nil)))
+      (with-current-buffer buf
+        (goto-char (point-max))
+        (unless (bobp)
+          (insert "\n\n"))
+        (insert text)
+        (goto-char (point-max))
+        (let ((gptel--system-message my/gptel-translate-system-prompt)
+              (gptel-use-context nil)
+              (gptel-use-tools nil))
+          (gptel-send nil)))
+      (pop-to-buffer buf))))
+(global-set-key (kbd "M-i") #'my/gptel-translate-buffer)
+#+end_src
 
 *** gptel-quick
 #+begin_src emacs-lisp

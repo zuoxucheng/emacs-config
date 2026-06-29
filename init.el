@@ -21,11 +21,12 @@
 		 1.0 :matchers ("begin" "$1" "$" "$$" "\\(" "\\[")))
  '(package-selected-packages
    '(apheleia avy code-cells comint-mime corfu denote dired-du
-	      gptel-quick gruvbox-theme jinx kdl-mode lsp-bridge magit
-	      marginalia multi-vterm multiple-cursors org-journal
-	      org-modern org-modern-indent org-roam org-superstar
-	      popper ruff-format toc-org uniline uv-mode vertico
-	      visual-fill-column xdg-launcher yasnippet-snippets))
+	      gptel-quick gruvbox-theme impatient-mode jinx kdl-mode
+	      lsp-bridge magit marginalia multi-vterm multiple-cursors
+	      org-journal org-modern org-modern-indent org-roam
+	      org-superstar pandoc-mode popper ruff-format toc-org
+	      uniline uv-mode valign vertico visual-fill-column
+	      xdg-launcher yasnippet-snippets))
  '(package-vc-selected-packages
    '((gptel-quick :url "https://github.com/karthink/gptel-quick")
      (xdg-launcher :url "https://github.com/emacs-exwm/xdg-launcher"))))
