@@ -2,7 +2,7 @@
 #+TITLE: ZUO's Emacs Config
 #+AUTHOR: Xucheng ZUO
 #+PROPERTY: header-args :results silent
-#+startup: num
+#+startup: num showall hideblocks
 
 * Table of Contents :toc:
 - [[#before-configuration][Before Configuration]]
@@ -84,17 +84,11 @@
 #+begin_src emacs-lisp
 (setq completion-eager-display t)	;show completion buffer while typing
 (setq completion-eager-update t)	;update completion buffer while typing
-
 (setq completion-pcm-leading-wildcard nil) ;fuzzy
-
 (setq minibuffer-visible-completions 'up-down) ;up-down for completion, left-right for pre/nex inputs
-
 (setq completions-format 'one-column)	;show in completion in single column
-
 (setq completions-sort 'historical)	;Sort by recent use                                 
-
 (setq completion-styles '(basic partial-completion flex)) ;Good completion styles, work for vertico
-
 (add-hook 'prog-mode-hook #'completion-preview-mode) ;Ghost text preview in buffers
 #+end_src
 
@@ -120,11 +114,10 @@
 (setq kept-old-versions 2)   ;; Keep the 2 oldest versions (the originals)
 (setq delete-old-versions t) ;; Delete excess backups silently (don't ask)
 
-
 (setopt quit-window-kill-buffer t)
 (setopt kill-buffer-quit-windows t)
-(global-set-key (kbd "C-x k") #'kill-current-buffer)
-
+;; (global-set-key (kbd "C-x k") #'kill-current-buffer)
+(global-set-key (kbd "C-x k") #'kill-buffer-and-window)
 ;; Some custom keybinds
 (global-set-key (kbd "C-c s s") 'scratch-buffer)
 #+end_src
@@ -138,7 +131,8 @@
   (visual-fill-column-mode 1)
   (setq-local visual-fill-column-width 100)
   (setq-local visual-fill-column-center-text t)
-  (setq org-startup-indented t)		;equal to M-x org-indent-mode on buffers
+  (org-indent-mode 1)
+  (setq org-image-align 'center)
   )
 
 (add-hook 'org-mode-hook		;this custom hook hide *ALL* stars in org headings.
@@ -152,6 +146,32 @@
   (define-key org-mode-map (kbd "M-TAB") #'lsp-bridge-popup-complete-menu)
   (define-key org-mode-map (kbd "<M-tab>") #'lsp-bridge-popup-complete-menu)
   (define-key org-mode-map (kbd "C-M-i") #'lsp-bridge-popup-complete-menu))
+
+(with-eval-after-load 'org
+  (add-to-list 'load-path
+               (expand-file-name
+                "lisp/org-latex-preview-plus"
+                user-emacs-directory))
+  (require 'org-latex-preview-plus)
+
+  (setq org-latex-preview-process-default 'dvisvgm
+        org-latex-preview-cache 'persist
+        org-latex-preview-process-precompiled t)
+
+  (setq org-latex-preview-appearance-options
+        (org-combine-plists
+         org-latex-preview-appearance-options
+         '(:scale 2.0
+           :zoom 1.0
+           :background "Transparent")))
+
+  (add-hook 'org-mode-hook #'org-latex-preview-auto-mode)
+  )
+
+(with-eval-after-load 'org-latex-preview-plus
+  (setq org-latex-preview-live '(block edit-special)
+        org-latex-preview-live-display-type 'buffer
+        org-latex-preview-live-debounce 0.8))
 #+end_src
 
 #+begin_src emacs-lisp
@@ -218,7 +238,8 @@
 	("pq" . "src python")		;python quick
 	("r" . "src R")
 	("b" . "src bash")
-	("d" . "src dot")))
+	("d" . "src dot")
+	("D" . "definition")))
 #+end_src
 
 ** dired
@@ -241,6 +262,7 @@
   :config
   (add-hook 'dired-mode-hook #'dired-hide-details-mode)
   (add-hook 'dired-mode-hook #'dired-omit-mode)
+  (setq dired-dwim-target t)
   (setq delete-by-moving-to-trash t)
   (setq dired-free-space nil)
   (setq dired-hide-details-hide-absolute-location t)
@@ -396,13 +418,28 @@
 
 * Custom Packages Configurations
 ** Code / Programming
+*** ESS
+#+begin_src emacs-lisp
+(use-package ess
+  :ensure t
+  :mode (("\\.R\\'" . R-mode)
+	 ("\\.r\\'" . R-mode))
+  :init
+  (setq inferior-R-program-name "R"
+	ess-indent-offset 2)
+  )
+#+end_src
+
 *** vterm
 #+begin_src emacs-lisp
 (use-package vterm
   :ensure t)
 (use-package multi-vterm
   :ensure t
-  :bind (("C-c v t" . multi-vterm)))
+  :custom (multi-vterm-buffer-name "vterm")
+  :bind (("C-c v t" . multi-vterm)
+	 ("M-o"   . popper-toggle)) ; need copy-mode to work
+  )
 #+end_src
 
 *** kdl-mode
@@ -474,7 +511,13 @@
   (lsp-bridge-complete-manually t)
   (lsp-bridge-code-action-enable-popup-menu nil)
   :config
-  (global-lsp-bridge-mode))
+  (add-hook 'python-ts-mode-hook #'lsp-bridge-mode)
+  (global-lsp-bridge-mode)
+  :bind (("M-TAB" . lsp-bridge-popup-complete-menu)
+	 ("M-." . lsp-bridge-find-def)
+	 ("M-," . lsp-bridge-find-def-return)
+	 )
+  )
 #+end_src
 
 *** Python Settings
@@ -488,9 +531,9 @@
                '(python-mode . python-ts-mode)))
 
 ;;; IPython shell
-(when (executable-find "ipython3")
-  (setq python-shell-interpreter "ipython3"
-        python-shell-interpreter-args "--simple-prompt --classic"))
+(setq python-shell-interpreter "ipython"
+      python-shell-interpreter-args "--simple-prompt"
+      python-shell-interpreter-interactive-arg "--simple-prompt")
 
 ;;; Do not visually wrap Python shell buffers
 (add-hook 'inferior-python-mode-hook #'toggle-truncate-lines)
@@ -514,8 +557,12 @@
 #+begin_src emacs-lisp
 (use-package uv-mode
   :ensure t
-  :hook
-  ((python-mode python-ts-mode) . uv-mode-auto-activate-hook))
+  :demand t
+  :config
+  (uv-mode 1)
+  (add-hook 'python-mode-hook #'uv-mode-auto-activate-hook)
+  (add-hook 'python-ts-mode-hook #'uv-mode-auto-activate-hook)
+  )
 #+end_src
 
 **** comint-mime
@@ -818,12 +865,31 @@ Org modern will disable pre
 (global-set-key (kbd "C-c C-<") 'mc/mark-all-like-this)
 #+end_src
 
+*** expand-region
+#+begin_src emacs-lisp
+(use-package expand-region
+  :ensure t
+  :bind
+  ("C-M-SPC" . er/expand-region)
+  )
+#+end_src
+
+*** move-text
+#+begin_src emacs-lisp
+(use-package move-text
+  :ensure t
+  :config
+  (move-text-default-bindings))
+#+end_src
+
 *** avy
 #+begin_src emacs-lisp
 (use-package avy
   :ensure t
   :bind (("M-'" . avy-goto-char-timer)
          ("M-l" . avy-goto-line))
+  :config
+  (define-key isearch-mode-map (kbd "M-'") 'avy-isearch)
   )
 #+end_src
 
@@ -840,43 +906,55 @@ Org modern will disable pre
 (use-package popper
   :ensure t
   :demand t
-  :bind (("C-|"   . popper-toggle)
-         ("M-|"   . popper-cycle)
-         ("C-M-|" . popper-toggle-type))
+  :bind (("M-o"   . popper-toggle)
+         ;; ("M-|"   . popper-cycle)
+         ;; ("M-o" . popper-toggle-type)
+	 )
   :init
   (setq popper-reference-buffers
         '("\\*Messages\\*"
           "Output\\*$"
-	  "\\*eldoc\\*"
+          "\\*eldoc\\*"
           "\\*Async Shell Command\\*"
-	  "\\*gptel-translate\\*"
+          "\\*gptel-translate\\*"
           help-mode
           compilation-mode
           dired-mode
-          inferior-python-mode))
+          inferior-python-mode
+          "^\\*eshell.*\\*$" eshell-mode
+          "^\\*shell.*\\*$"  shell-mode
+          "^\\*term.*\\*$"   term-mode
+          "^\\*vterm.*\\*$"  vterm-mode))
 
-  (setq popper-reference-buffers
-        (append popper-reference-buffers
-                '("^\\*eshell.*\\*$" eshell-mode
-                  "^\\*shell.*\\*$"  shell-mode
-                  "^\\*term.*\\*$"   term-mode
-                  "^\\*vterm.*\\*$"  vterm-mode)))
-  
+  (setq popper-display-control nil)
+  (setq switch-to-buffer-obey-display-actions t)
+
   :config
   (popper-mode +1)
   (popper-echo-mode +1)
 
+  ;; vterm: bottom popup
   (add-to-list 'display-buffer-alist
-               '((derived-mode . inferior-python-mode)
+               '("^\\*vterm.*\\*$"
                  (display-buffer-in-side-window)
-                 (side . right)
-                 (window-width . 0.33)))
+                 (side . bottom)
+                 (slot . 0)
+                 (window-height . 0.25)
+                 (inhibit-same-window . t)))
+  )
+  ;; ;; Python: right side
+  ;; (add-to-list 'display-buffer-alist
+  ;;              '((derived-mode . inferior-python-mode)
+  ;;                (display-buffer-in-side-window)
+  ;;                (side . right)
+  ;;                (window-width . 0.33)))
 
-  (add-to-list 'display-buffer-alist
-               '((derived-mode . dired-mode)
-                 (display-buffer-in-side-window)
-                 (side . left)
-                 (window-width . 20))))
+  ;; ;; Dired: left side
+  ;; (add-to-list 'display-buffer-alist
+  ;;              '((derived-mode . dired-mode)
+  ;;                (display-buffer-in-side-window)
+  ;;                (side . left)
+  ;;                (window-width . 20))))
 #+end_src
 
 ** Writing / Publication
@@ -1105,6 +1183,25 @@ Keep technical terms precise. If text is a single word, provide dictionary-like 
           gptel-quick-model "gemma4:31b-cloud"))
   (setq gptel-quick-timeout 3600)
   )
+#+end_src
+
+*** codex
+#+begin_src emacs-lisp
+(use-package codex
+  :vc (:url "https://github.com/benthamite/codex")
+  :bind-keymap
+  ("C-c c" . codex-command-map)
+  :bind
+  (:map codex-command-map
+        ("x" . codex)
+        ("g" . codex-transient))
+  :custom
+  (codex-terminal-backend 'app-server)
+  (codex-app-server-render-markdown t)
+  :config
+  (with-eval-after-load 'org-latex-preview-plus
+    (require 'org-latex-preview-codex)
+    (org-latex-preview-codex-enable)))
 #+end_src
 
 ** Misc
