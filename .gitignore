@@ -4,4 +4,6 @@
 !config.org
 !early-init.el
 !init.el
-!lisp/org-latex-preview-plus
+!lisp/
+!lisp/org-latex-preview-plus/
+!lisp/org-latex-preview-plus/**
