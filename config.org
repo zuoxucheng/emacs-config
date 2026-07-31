@@ -89,7 +89,6 @@
 (setq completions-format 'one-column)	;show in completion in single column
 (setq completions-sort 'historical)	;Sort by recent use                                 
 (setq completion-styles '(basic partial-completion flex)) ;Good completion styles, work for vertico
-(add-hook 'prog-mode-hook #'completion-preview-mode) ;Ghost text preview in buffers
 #+end_src
 
 ** Better navigation
@@ -142,10 +141,6 @@
              '(("^\\(\\*+\\)[ \t]+" (1 '(face org-hide) t))))))
 
 (add-hook 'org-mode-hook #'my/org-visual-setup)
-(with-eval-after-load 'org
-  (define-key org-mode-map (kbd "M-TAB") #'lsp-bridge-popup-complete-menu)
-  (define-key org-mode-map (kbd "<M-tab>") #'lsp-bridge-popup-complete-menu)
-  (define-key org-mode-map (kbd "C-M-i") #'lsp-bridge-popup-complete-menu))
 
 (with-eval-after-load 'org
   (add-to-list 'load-path
@@ -464,8 +459,8 @@
 (use-package eldoc
   :ensure nil
   :custom
-  (eldoc-idle-delay most-positive-fixnum)
-  (eldoc-echo-area-use-multiline-p nil)
+  (eldoc-idle-delay 0.5)
+  (eldoc-echo-area-use-multiline-p 2)
   :bind
   ("C-c d" . eldoc))
 #+end_src
@@ -475,6 +470,12 @@
 (use-package apheleia
   :ensure t
   :config
+  (setf (alist-get 'ruff apheleia-formatters)
+	'("uv" "run" "--no-sync" "ruff" "format"
+          "--silent"
+          (apheleia-formatters-fill-column "--line-length")
+          "--stdin-filename" filepath
+          "-"))
   (setf (alist-get 'python-mode apheleia-mode-alist) '(ruff))
   (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff))
   (apheleia-global-mode +1))
@@ -486,38 +487,54 @@
   :ensure t)
 #+end_src
 
-*** yasnippet
+*** Eglot
 #+begin_src emacs-lisp
-(use-package yasnippet
-  :ensure t
-  :config
-  (yas-global-mode 1))
-#+end_src
+(defconst my/python-lsp-command
+  (list (expand-file-name "~/.local/bin/ty") "server"))
 
-#+begin_src emacs-lisp
-(use-package yasnippet-snippets
-  :ensure t)
-#+end_src
+(unless (file-executable-p (car my/python-lsp-command))
+  (error "Python language server is not executable: %s"
+         (car my/python-lsp-command)))
 
-*** lsp-bridge
-#+begin_src emacs-lisp
-(use-package lsp-bridge
-  :vc (:url "https://github.com/manateelazycat/lsp-bridge"
-       :rev :newest
-       :branch "master")
-  :after yasnippet
+(defun my/python-lsp-status ()
+  "Report the language server process managing the current buffer."
+  (interactive)
+  (if-let* ((server (eglot-current-server))
+            (process (jsonrpc--process server)))
+      (message "Python LSP: ty | %S | status: %s"
+               (process-command process)
+               (process-status process))
+    (user-error "Eglot is not managing this buffer")))
+
+(use-package eglot
+  :ensure nil
   :custom
-  (lsp-bridge-enable-org-babel t)
-  (lsp-bridge-complete-manually t)
-  (lsp-bridge-code-action-enable-popup-menu nil)
+  (eglot-autoshutdown t)
   :config
-  (add-hook 'python-ts-mode-hook #'lsp-bridge-mode)
-  (global-lsp-bridge-mode)
-  :bind (("M-TAB" . lsp-bridge-popup-complete-menu)
-	 ("M-." . lsp-bridge-find-def)
-	 ("M-," . lsp-bridge-find-def-return)
-	 )
-  )
+  (add-to-list 'eglot-server-programs
+               `((python-base-mode :language-id "python")
+                 . ,my/python-lsp-command))
+  :hook
+  (python-base-mode . eglot-ensure)
+  :bind
+  (:map eglot-mode-map
+        ("C-c l a" . eglot-code-actions)
+        ("C-c l i" . eglot-find-implementation)
+        ("C-c l r" . eglot-rename)
+        ("C-c l R" . eglot-reconnect)
+        ("C-c l s" . my/python-lsp-status)
+        ("C-c l q" . eglot-shutdown)
+	("<f5>" . eglot-momentary-inlay-hints)))
+#+end_src
+
+*** flymake
+#+begin_src emacs-lisp
+(use-package flymake
+  :ensure nil
+  :bind
+  (("C-c ! n" . flymake-goto-next-error)
+   ("C-c ! p" . flymake-goto-prev-error)
+   ("C-c ! l" . flymake-show-project-diagnostics)))
 #+end_src
 
 *** Python Settings
@@ -535,6 +552,23 @@
       python-shell-interpreter-args "--simple-prompt"
       python-shell-interpreter-interactive-arg "--simple-prompt")
 
+(defun my/python-use-project-venv ()
+  "Use the project .venv for the current buffer's Python shell."
+  (when-let* ((root (locate-dominating-file default-directory ".venv"))
+              (venv (expand-file-name ".venv/" root))
+              (python (expand-file-name "bin/python" venv)))
+    (setq-local python-shell-virtualenv-root venv)
+    (if (file-executable-p (expand-file-name "bin/ipython" venv))
+        (setq-local python-shell-interpreter
+                    (expand-file-name "bin/ipython" venv)
+                    python-shell-interpreter-args "--simple-prompt"
+                    python-shell-interpreter-interactive-arg "--simple-prompt")
+      (setq-local python-shell-interpreter python
+                  python-shell-interpreter-args ""
+                  python-shell-interpreter-interactive-arg ""))))
+
+(add-hook 'python-base-mode-hook #'my/python-use-project-venv)
+
 ;;; Do not visually wrap Python shell buffers
 (add-hook 'inferior-python-mode-hook #'toggle-truncate-lines)
 #+end_src
@@ -550,18 +584,6 @@
   (:map python-ts-mode-map
 	("C-c C-b" . python-shell-send-buffer)
 	("C-c C-x" . python-shell-restart))
-  )
-#+end_src
-
-**** uv-mode
-#+begin_src emacs-lisp
-(use-package uv-mode
-  :ensure t
-  :demand t
-  :config
-  (uv-mode 1)
-  (add-hook 'python-mode-hook #'uv-mode-auto-activate-hook)
-  (add-hook 'python-ts-mode-hook #'uv-mode-auto-activate-hook)
   )
 #+end_src
 
@@ -830,17 +852,15 @@ Org modern will disable pre
   :hook (after-init . marginalia-mode))
 #+end_src
 
-*** yasnippet
-#+begin_src emacs-lisp
-(use-package yasnippet
-  :ensure t)
-#+end_src
-
 *** corfu
 #+begin_src emacs-lisp
 (use-package corfu
   :ensure t
   :custom
+  (global-corfu-modes '((not inferior-python-mode) t))
+  (corfu-auto t)
+  (corfu-auto-delay 0.15)
+  (corfu-auto-prefix 2)
   (corfu-cycle t)                ;; Cycle candidates
   ;(corfu-preview-current nil)    ;; Do not preview current candidate
   (corfu-preselect 'prompt)
@@ -851,10 +871,135 @@ Org modern will disable pre
         ([tab] . corfu-insert)
         ("RET" . nil))           ;; Keep RET for newline
   :init
-  (global-corfu-mode))
+  (global-corfu-mode)
+  :config
+  (require 'corfu-popupinfo)
+  (setq corfu-popupinfo-delay '(0.5 . 0.2))
+  (corfu-popupinfo-mode 1))
+
+(global-set-key (kbd "M-TAB") #'completion-at-point)
+(global-set-key (kbd "C-M-i") #'completion-at-point)
 #+end_src
 
+*** yasnippet
+#+begin_src emacs-lisp
+(use-package yasnippet
+  :ensure t
+  :config
+  (yas-global-mode 1))
+#+end_src
+
+**** yasnippet-snippets
+#+begin_src emacs-lisp
+(use-package yasnippet-snippets
+  :ensure t)
+#+end_src
+
+
 ** Navigation
+*** meow
+#+begin_src emacs-lisp
+(use-package meow
+  :ensure t
+  :demand t
+  :bind ("C-c M" . meow-global-mode)
+  :config
+  (defun my/meow-setup ()
+    "Set up Meow's example QWERTY command layout."
+    (setq meow-cheatsheet-layout meow-cheatsheet-layout-qwerty)
+
+    ;; In read-only/special buffers, keep their native keys except for j/k.
+    ;; Prefix a native j or k with SPC when one of those modes needs it.
+    (meow-motion-define-key
+     '("j" . meow-next)
+     '("k" . meow-prev)
+     '("<escape>" . ignore))
+
+    ;; SPC enters the keypad.  SPC ? is the cheat sheet; SPC / explains a key.
+    (meow-leader-define-key
+     '("1" . meow-digit-argument)
+     '("2" . meow-digit-argument)
+     '("3" . meow-digit-argument)
+     '("4" . meow-digit-argument)
+     '("5" . meow-digit-argument)
+     '("6" . meow-digit-argument)
+     '("7" . meow-digit-argument)
+     '("8" . meow-digit-argument)
+     '("9" . meow-digit-argument)
+     '("0" . meow-digit-argument)
+     '("/" . meow-keypad-describe-key)
+     '("?" . meow-cheatsheet))
+
+    (meow-normal-define-key
+     '("0" . meow-expand-0)
+     '("9" . meow-expand-9)
+     '("8" . meow-expand-8)
+     '("7" . meow-expand-7)
+     '("6" . meow-expand-6)
+     '("5" . meow-expand-5)
+     '("4" . meow-expand-4)
+     '("3" . meow-expand-3)
+     '("2" . meow-expand-2)
+     '("1" . meow-expand-1)
+     '("-" . negative-argument)
+     '(";" . meow-reverse)
+     '("," . meow-inner-of-thing)
+     '("." . meow-bounds-of-thing)
+     '("[" . meow-beginning-of-thing)
+     '("]" . meow-end-of-thing)
+     '("a" . meow-append)
+     '("A" . meow-open-below)
+     '("b" . meow-back-word)
+     '("B" . meow-back-symbol)
+     '("c" . meow-change)
+     '("d" . meow-delete)
+     '("D" . meow-backward-delete)
+     '("e" . meow-next-word)
+     '("E" . meow-next-symbol)
+     '("f" . meow-find)
+     '("g" . meow-cancel-selection)
+     '("G" . meow-grab)
+     '("h" . meow-left)
+     '("H" . meow-left-expand)
+     '("i" . meow-insert)
+     '("I" . meow-open-above)
+     '("j" . meow-next)
+     '("J" . meow-next-expand)
+     '("k" . meow-prev)
+     '("K" . meow-prev-expand)
+     '("l" . meow-right)
+     '("L" . meow-right-expand)
+     '("m" . meow-join)
+     '("n" . meow-search)
+     '("o" . meow-block)
+     '("O" . meow-to-block)
+     '("p" . meow-yank)
+     '("q" . meow-quit)
+     '("Q" . meow-goto-line)
+     '("r" . meow-replace)
+     '("R" . meow-swap-grab)
+     '("s" . meow-kill)
+     '("t" . meow-till)
+     '("u" . meow-undo)
+     '("U" . meow-undo-in-selection)
+     '("v" . meow-visit)
+     '("w" . meow-mark-word)
+     '("W" . meow-mark-symbol)
+     '("x" . meow-line)
+     '("X" . meow-goto-line)
+     '("y" . meow-save)
+     '("Y" . meow-sync-grab)
+     '("z" . meow-pop-selection)
+     '("'" . repeat)
+     '("<escape>" . ignore)))
+
+  (my/meow-setup)
+  ;; Your normal mode line is hidden, so this produces only a compact Meow
+  ;; state indicator rather than restoring the full default mode line.
+  (meow-setup-indicator)
+  (meow-global-mode 1))
+#+end_src
+
 *** multiple-cursors
 #+begin_src emacs-lisp
 (use-package multiple-cursors
@@ -915,6 +1060,8 @@ Org modern will disable pre
         '("\\*Messages\\*"
           "Output\\*$"
           "\\*eldoc\\*"
+          "\\*EGLOT.*\\*"
+          "\\*Flymake diagnostics.*\\*"
           "\\*Async Shell Command\\*"
           "\\*gptel-translate\\*"
           help-mode

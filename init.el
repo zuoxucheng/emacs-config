@@ -21,13 +21,13 @@
 		 1.0 :matchers ("begin" "$1" "$" "$$" "\\(" "\\[")))
  '(package-selected-packages
    '(apheleia avy code-cells codex comint-mime corfu denote dired-du ess
-	      expand-region gptel-quick gruvbox-theme impatient-mode
-	      jinx kdl-mode lsp-bridge magit marginalia move-text
-	      multi-vterm multiple-cursors org-journal org-modern
-	      org-modern-indent org-roam org-superstar pandoc-mode
-	      popper ruff-format toc-org uniline uv-mode valign
-	      vertico visual-fill-column xdg-launcher
-	      yasnippet-snippets))
+	      expand-region f gptel-quick gruvbox-theme ht
+	      impatient-mode jinx jupyter kdl-mode magit marginalia
+	      markdown-mode meow move-text multi-vterm
+	      multiple-cursors org-journal org-modern
+	      org-modern-indent org-roam popper posframe reformatter
+	      spinner toc-org uniline valign vertico
+	      visual-fill-column xdg-launcher yasnippet-snippets))
  '(package-vc-selected-packages
    '((gptel-quick :url "https://github.com/karthink/gptel-quick")
      (xdg-launcher :url "https://github.com/emacs-exwm/xdg-launcher"))))
