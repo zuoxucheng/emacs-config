@@ -250,6 +250,8 @@
   :bind (:map dired-mode-map
               ("." . dired-omit-mode)
               ("b" . dired-up-directory)
+              ("j" . dired-next-line)
+              ("k" . dired-previous-line)
               ("z" . fit-window-to-buffer)
               ("(" . my/dired-toggle-details-and-fit-window)
               ("M-o" . dired-display-file)
@@ -257,6 +259,9 @@
   :config
   (add-hook 'dired-mode-hook #'dired-hide-details-mode)
   (add-hook 'dired-mode-hook #'dired-omit-mode)
+  ;; `dired-jump' makes plain j a repeat key by default, stealing the first j
+  ;; after C-x C-j from Meow.  Keep C-j as its explicit repeat key instead.
+  (keymap-unset dired-jump-map "j")
   (setq dired-dwim-target t)
   (setq delete-by-moving-to-trash t)
   (setq dired-free-space nil)
@@ -506,6 +511,15 @@
                (process-status process))
     (user-error "Eglot is not managing this buffer")))
 
+(defvar-keymap my/eglot-command-map
+  :doc "Eglot commands for `meow-leader-define-key'."
+  "a" #'eglot-code-actions
+  "i" #'eglot-find-implementation
+  "r" #'eglot-rename
+  "R" #'eglot-reconnect
+  "s" #'my/python-lsp-status
+  "q" #'eglot-shutdown)
+
 (use-package eglot
   :ensure nil
   :custom
@@ -527,8 +541,14 @@
 	("<f5>" . eglot-momentary-inlay-hints)))
 #+end_src
 
-*** flymake
+*** Flymake
 #+begin_src emacs-lisp
+(defvar-keymap my/flymake-command-map
+  :doc "Flymake commands for `meow-leader-define-key'."
+  "n" #'flymake-goto-next-error
+  "p" #'flymake-goto-prev-error
+  "l" #'flymake-show-project-diagnostics)
+
 (use-package flymake
   :ensure nil
   :bind
@@ -551,6 +571,15 @@
 (setq python-shell-interpreter "ipython"
       python-shell-interpreter-args "--simple-prompt"
       python-shell-interpreter-interactive-arg "--simple-prompt")
+
+(defun my/python-source-intelligence-setup ()
+  "Use Eglot instead of the live REPL for source-buffer intelligence."
+  (setq-local python-eldoc-get-doc nil)
+  (remove-hook 'completion-at-point-functions
+	       #'python-completion-at-point t))
+
+(add-hook 'python-base-mode-hook
+	  #'my/python-source-intelligence-setup)
 
 (defun my/python-use-project-venv ()
   "Use the project .venv for the current buffer's Python shell."
@@ -791,7 +820,32 @@ Load Gruvbox without enabling it, replace the problematic and customized face de
   )
 
 (setq word-wrap-by-category t)
-(add-hook 'visual-line-mode-hook #'visual-fill-column-mode)
+(add-hook 'visual-line-mode-hook #'visual-fill-column-for-vline)
+
+(defun my/visual-fill-column-toggle-center ()
+  "Toggle centered text, enabling `visual-fill-column-mode' if necessary."
+  (interactive)
+  (unless visual-fill-column-mode
+    (visual-fill-column-mode 1))
+  (visual-fill-column-toggle-center-text))
+
+(defun my/visual-fill-column-set-width (width)
+  "Set the current buffer's visual text WIDTH and refresh its margins."
+  (interactive
+   (list (read-number "Visual text width: "
+                      (or visual-fill-column-width fill-column))))
+  (setq-local visual-fill-column-width width)
+  (unless visual-fill-column-mode
+    (visual-fill-column-mode 1))
+  (visual-fill-column-adjust))
+
+(defvar-keymap my/visual-command-map
+  :doc "Visual layout commands for the Meow leader."
+  "l" #'visual-line-mode
+  "f" #'visual-fill-column-mode
+  "c" #'my/visual-fill-column-toggle-center
+  "w" #'my/visual-fill-column-set-width
+  "i" #'display-fill-column-indicator-mode)
 
 (global-set-key (kbd "C-c v l") 'visual-line-mode)
 (global-set-key (kbd "C-c v f") 'visual-fill-column-mode)
@@ -904,6 +958,24 @@ Org modern will disable pre
   :demand t
   :bind ("C-c M" . meow-global-mode)
   :config
+  (setq meow-expand-hint-remove-delay 2.0)
+
+  ;; Dired is navigational: always start it in Motion state so j/k move rows.
+  (add-to-list 'meow-mode-state-list '(dired-mode . motion))
+
+  ;; Extend Emacs's window prefix, exposed through Meow as SPC w.
+  (define-key window-prefix-map (kbd "k") #'kill-buffer-and-window)
+
+  (defun my/meow-wrap-round ()
+    "Wrap the active region in parentheses, or insert an empty pair."
+    (interactive)
+    (insert-pair nil ?\( ?\)))
+
+  (defun my/meow-wrap-double-quotes ()
+    "Wrap the active region in double quotes, or insert an empty pair."
+    (interactive)
+    (insert-pair nil ?\" ?\"))
+
   (defun my/meow-setup ()
     "Set up Meow's example QWERTY command layout."
     (setq meow-cheatsheet-layout meow-cheatsheet-layout-qwerty)
@@ -927,6 +999,15 @@ Org modern will disable pre
      '("8" . meow-digit-argument)
      '("9" . meow-digit-argument)
      '("0" . meow-digit-argument)
+     '("k" . kill-buffer-and-window)
+     '("o" . other-window)
+     '("b" . switch-to-buffer)
+     '("B" . ibuffer)
+     '("d" . eldoc)
+     (cons "e" my/flymake-command-map)
+     (cons "l" my/eglot-command-map)
+     (cons "v" my/visual-command-map)
+     (cons "w" window-prefix-map)
      '("/" . meow-keypad-describe-key)
      '("?" . meow-cheatsheet))
 
@@ -943,10 +1024,15 @@ Org modern will disable pre
      '("1" . meow-expand-1)
      '("-" . negative-argument)
      '(";" . meow-reverse)
+     '(":" . recenter-top-bottom)
      '("," . meow-inner-of-thing)
      '("." . meow-bounds-of-thing)
      '("[" . meow-beginning-of-thing)
      '("]" . meow-end-of-thing)
+     '("(" . my/meow-wrap-round)
+     '("S-9" . my/meow-wrap-round)
+     '("\"" . my/meow-wrap-double-quotes)
+     '("S-'" . my/meow-wrap-double-quotes)
      '("a" . meow-append)
      '("A" . meow-open-below)
      '("b" . meow-back-word)
@@ -1079,6 +1165,25 @@ Org modern will disable pre
   :config
   (popper-mode +1)
   (popper-echo-mode +1)
+
+  ;; Explicit documentation and diagnostics panels: bottom popups that
+  ;; never replace the active editing window.
+  (add-to-list 'display-buffer-alist
+               '("\\*eldoc\\*"
+                 (display-buffer-in-side-window)
+                 (side . bottom)
+                 (slot . 0)
+                 (window-height . 0.25)
+                 (inhibit-same-window . t)
+                 (body-function . select-window)))
+  (add-to-list 'display-buffer-alist
+               '("\\*Flymake diagnostics.*\\*"
+                 (display-buffer-in-side-window)
+                 (side . bottom)
+                 (slot . 0)
+                 (window-height . 0.25)
+                 (inhibit-same-window . t)
+                 (body-function . select-window)))
 
   ;; vterm: bottom popup
   (add-to-list 'display-buffer-alist
@@ -1285,7 +1390,7 @@ Ollama-cuda must be installed on the system and ollama.service need to be enable
   "Respond concisely. Translate the user's text naturally and accurately.
 If the input is Japanese, translate it to English and Chinese.
 If the input is English, translate it to Japanese and Chinese.
-Keep technical terms precise. If text is a single word, provide dictionary-like information and give example sentence.")
+Keep technical terms precise. If text is a single word, provide dictionary-like information and give example sentence. (Use \\(\\) for LaTex")
 
 (defun my/gptel-translate-buffer ()
   "Translate region or word at point in a dedicated gptel buffer."
@@ -1336,12 +1441,6 @@ Keep technical terms precise. If text is a single word, provide dictionary-like 
 #+begin_src emacs-lisp
 (use-package codex
   :vc (:url "https://github.com/benthamite/codex")
-  :bind-keymap
-  ("C-c c" . codex-command-map)
-  :bind
-  (:map codex-command-map
-        ("x" . codex)
-        ("g" . codex-transient))
   :custom
   (codex-terminal-backend 'app-server)
   (codex-app-server-render-markdown t)
