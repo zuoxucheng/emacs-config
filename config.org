@@ -128,7 +128,7 @@
   "My custom visual settings that run whenever Org mode starts."
   (visual-line-mode 1)
   (visual-fill-column-mode 1)
-  (setq-local visual-fill-column-width 100)
+  (setq-local visual-fill-column-width 80)
   (setq-local visual-fill-column-center-text t)
   (org-indent-mode 1)
   (setq org-image-align 'center)
@@ -492,6 +492,19 @@
   :ensure t)
 #+end_src
 
+*** paredit
+#+begin_src emacs-lisp
+(use-package paredit
+  :ensure t
+  :hook
+  ((emacs-lisp-mode . enable-paredit-mode)
+   (lisp-interaction-mode . enable-paredit-mode)
+   (lisp-mode . enable-paredit-mode)
+   (scheme-mode . enable-paredit-mode)
+   (ielm-mode . enable-paredit-mode)
+   (python-base-mode . enable-paredit-mode)))
+#+end_src
+
 *** Eglot
 #+begin_src emacs-lisp
 (defconst my/python-lsp-command
@@ -814,6 +827,8 @@ Load Gruvbox without enabling it, replace the problematic and customized face de
 #+begin_src emacs-lisp
 (use-package visual-fill-column
   :ensure t
+  :config
+  (setq-default visual-fill-column-width 80)
   :custom
   (visual-fill-column-fringes-outside-margins nil)
   (visual-fill-column-adjust-for-text-scale nil)

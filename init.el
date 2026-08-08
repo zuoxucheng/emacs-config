@@ -25,8 +25,8 @@
 	      jinx kdl-mode lsp-bridge magit marginalia meow move-text
 	      multi-vterm multiple-cursors org-journal org-modern
 	      org-modern-indent org-roam org-superstar pandoc-mode
-	      popper ruff-format toc-org uniline uv-mode valign
-	      vertico visual-fill-column xdg-launcher
+	      paredit popper ruff-format toc-org uniline uv-mode
+	      valign vertico visual-fill-column xdg-launcher
 	      yasnippet-snippets))
  '(package-vc-selected-packages
    '((gptel-quick :url "https://github.com/karthink/gptel-quick")
