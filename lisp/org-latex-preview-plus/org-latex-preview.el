@@ -494,6 +494,7 @@ is called in a buffer, but subsequent calls will be faster.
 This requires the LaTeX package \"mylatexformat\" to be installed."
   :group 'org-latex-preview
   :package-version '(Org . "9.7")
+  :safe #'booleanp
   :type 'boolean)
 
 (defcustom org-latex-preview-auto-track-inserts t
@@ -1167,17 +1168,6 @@ Called with EXIT-CODE and EXTENDED-INFO from the async process."
     (org-latex-preview-live--update-times
      (- (float-time) (plist-get extended-info :start-time)))))
 
-(defconst org-latex-preview-live-display-type 'buffer
-  "How to display live-updating previews of LaTeX snippets.
-
-This option is meaningful when live previews are enabled, by
-setting `org-latex-preview-auto-generate' to `live' and enabling
-`org-latex-preview-auto-mode'.
-
-The only currently supported option is the symbol buffer, to
- display live previews next to or under the LaTeX fragment in the
- Org buffer.")
-
 (defun org-latex-preview-live--debounce (func duration)
   "Return a debounced FUNC with DURATION applied."
   (let ((debounce-timer))
@@ -1735,7 +1725,7 @@ is either the substring between BEG and END or (when provided) VALUE."
           (cdr (assq processing-type org-latex-preview-process-alist)))
          (imagetype (or (plist-get processing-info :image-output-type) "png"))
          (numbering-offsets (cons nil numbering-offsets))
-         fragment-info prev-fg prev-bg)
+         fragment-info queued-fg queued-bg)
     (save-excursion
       (dolist (entry entries)
         (pcase-let* ((`(,beg ,end ,provided-value) entry)
@@ -1744,29 +1734,35 @@ is either the substring between BEG and END or (when provided) VALUE."
                      (`(,fg ,bg) (org-latex-preview--colors-around beg end))
                      (number (car (setq numbering-offsets (cdr numbering-offsets))))
                      (hash (org-latex-preview--hash
-                            processing-type latex-preamble value imagetype fg bg number))
-                     (options (org-combine-plists
-                               org-latex-preview-appearance-options
-                               (list :foreground fg
-                                     :background bg
-                                     :number number
-                                     :continue-color
-                                     (and (equal prev-bg bg)
-                                          (equal prev-fg fg)))
-                               (and (eq processing-type 'dvisvgm)
-                                    (list :foreground
-                                          org-latex-preview--svg-fg-standin)))))
+                            processing-type latex-preamble value imagetype fg bg number)))
           (if-let* ((path-info (org-latex-preview--get-cached hash)))
               (org-latex-preview--update-overlay
                (org-latex-preview--ensure-overlay beg end)
                path-info)
             (unless (org-latex-preview--empty-fragment-p value)
-              (push (list :string (org-latex-preview--tex-styled
-                                   processing-type value options)
-                          :overlay (org-latex-preview--ensure-overlay beg end)
-                          :key hash)
-                    fragment-info)))
-          (setq prev-fg fg prev-bg bg))))
+              ;; Color state is shared only by fragments queued in this TeX
+              ;; batch.  Cached fragments are not part of it, so using the
+              ;; previous Org fragment here can leave the first cache miss
+              ;; without any foreground/currentColor declaration.
+              (let ((options
+                     (org-combine-plists
+                      org-latex-preview-appearance-options
+                      (list :foreground fg
+                            :background bg
+                            :number number
+                            :continue-color
+                            (and fragment-info
+                                 (equal queued-bg bg)
+                                 (equal queued-fg fg)))
+                      (and (eq processing-type 'dvisvgm)
+                           (list :foreground
+                                 org-latex-preview--svg-fg-standin)))))
+                (push (list :string (org-latex-preview--tex-styled
+                                     processing-type value options)
+                            :overlay (org-latex-preview--ensure-overlay beg end)
+                            :key hash)
+                      fragment-info)
+                (setq queued-fg fg queued-bg bg)))))))
     (when fragment-info
       (org-latex-preview--create-image-async
        processing-type
@@ -2086,7 +2082,7 @@ image are cached as per `org-latex-preview-cache', which see."
          (imagetype (or (plist-get processing-info :image-output-type) "png"))
          (numbering-offsets (cons nil (cadr entries-and-numbering)))
          (element-preview-hash-table (make-hash-table :test #'eq :size (length elements)))
-         fragment-info prev-fg prev-bg)
+         fragment-info queued-fg queued-bg)
 
     ;; Create fragment info for the preview process
     (cl-loop
@@ -2097,22 +2093,26 @@ image are cached as per `org-latex-preview-cache', which see."
      for (fg bg) = (org-latex-preview--colors-around beg end appearance-options)
      for number = (car (setq numbering-offsets (cdr numbering-offsets)))
      for hash = (org-latex-preview--hash processing-type preamble value imagetype fg bg number)
-     for options = (org-combine-plists
-                    appearance-options
-                    (list :foreground fg :background bg
-                          :number number
-                          :continue-color
-                          (and (equal prev-bg bg)
-                               (equal prev-fg fg))))
      do
      (puthash element hash element-preview-hash-table)
      (unless (org-latex-preview--get-cached hash)
-       (push (list :string (org-latex-preview--tex-styled
-                            processing-type value options)
-                   :overlay (org-latex-preview--ensure-overlay beg end)
-                   :key hash)
-             fragment-info))
-     (setq prev-fg fg prev-bg bg))
+       ;; See `org-latex-preview-place': continuation follows the generated
+       ;; batch, not cached fragments in buffer order.
+       (let ((options
+              (org-combine-plists
+               appearance-options
+               (list :foreground fg :background bg
+                     :number number
+                     :continue-color
+                     (and fragment-info
+                          (equal queued-bg bg)
+                          (equal queued-fg fg))))))
+         (push (list :string (org-latex-preview--tex-styled
+                              processing-type value options)
+                     :overlay (org-latex-preview--ensure-overlay beg end)
+                     :key hash)
+               fragment-info)
+         (setq queued-fg fg queued-bg bg))))
 
     (when (and image-dir (not (file-directory-p image-dir)))
       (make-directory image-dir 'parents)

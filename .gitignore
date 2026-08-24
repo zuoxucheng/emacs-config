@@ -2,8 +2,11 @@
 
 !.gitignore
 !config.org
+!custom.el
 !early-init.el
 !init.el
 !lisp/
 !lisp/org-latex-preview-plus/
 !lisp/org-latex-preview-plus/**
+
+/lisp/**/*.elc

@@ -119,19 +119,30 @@
 (global-set-key (kbd "C-x k") #'kill-buffer-and-window)
 ;; Some custom keybinds
 (global-set-key (kbd "C-c s s") 'scratch-buffer)
+(global-set-key (kbd "M-p") 'unfill-paragraph)
+
+(defvar-keymap my/bookmark-command-map
+  :doc "Bookmark command keymap"
+  "b" #'bookmark-jump
+  "l" #'bookmark-bmenu-list
+  "m" #'bookmark-set
+)
 #+end_src
 
 * Built-in Packages Configurations
 ** org
 #+begin_src emacs-lisp
+(setq org-image-align 'center
+      org-image-actual-width nil)       ; Respect #+ATTR_* widths globally.
+
 (defun my/org-visual-setup ()
   "My custom visual settings that run whenever Org mode starts."
   (visual-line-mode 1)
   (visual-fill-column-mode 1)
   (setq-local visual-fill-column-width 80)
   (setq-local visual-fill-column-center-text t)
+  (setq-local line-spacing 0.1)
   (org-indent-mode 1)
-  (setq org-image-align 'center)
   )
 
 (add-hook 'org-mode-hook		;this custom hook hide *ALL* stars in org headings.
@@ -151,7 +162,7 @@
 
   (setq org-latex-preview-process-default 'dvisvgm
         org-latex-preview-cache 'persist
-        org-latex-preview-process-precompiled t)
+        org-latex-preview-process-precompiled nil)
 
   (setq org-latex-preview-appearance-options
         (org-combine-plists
@@ -252,7 +263,9 @@
               ("b" . dired-up-directory)
               ("j" . dired-next-line)
               ("k" . dired-previous-line)
+	      ("I" . dired-kill-subdir)
               ("z" . fit-window-to-buffer)
+	      ("TAB" . dired-hide-subdir)
               ("(" . my/dired-toggle-details-and-fit-window)
               ("M-o" . dired-display-file)
               ("C-o" . other-window))
@@ -430,15 +443,11 @@
   )
 #+end_src
 
-*** vterm
+*** ghostel
 #+begin_src emacs-lisp
-(use-package vterm
-  :ensure t)
-(use-package multi-vterm
+(use-package ghostel
   :ensure t
-  :custom (multi-vterm-buffer-name "vterm")
-  :bind (("C-c v t" . multi-vterm)
-	 ("M-o"   . popper-toggle)) ; need copy-mode to work
+  :bind (("C-c T" . ghostel))
   )
 #+end_src
 
@@ -501,8 +510,7 @@
    (lisp-interaction-mode . enable-paredit-mode)
    (lisp-mode . enable-paredit-mode)
    (scheme-mode . enable-paredit-mode)
-   (ielm-mode . enable-paredit-mode)
-   (python-base-mode . enable-paredit-mode)))
+   (ielm-mode . enable-paredit-mode)))
 #+end_src
 
 *** Eglot
@@ -801,7 +809,7 @@ Load Gruvbox without enabling it, replace the problematic and customized face de
 (defun efs/set-font-faces ()
   (message "Setting faces!")
   (let ((font-size (cond ((string= (system-name) "LAPTOP") 100)
-                         ((string= (system-name) "arch") 140)
+                         ((string= (system-name) "arch") 120)
                          (t 100)))) 
                          
     (set-face-attribute 'default nil 
@@ -873,18 +881,17 @@ Load Gruvbox without enabling it, replace the problematic and customized face de
   :after org
   :ensure t
   :config
-  (global-org-modern-mode)
   (setq
    org-modern-todo nil
    org-modern-block-name t
-   org-modern-block-fringe 4
+   org-modern-block-fringe nil
    org-ellipsis " …"
-   line-spacing 0.1
    org-auto-align-tags nil
    org-tags-column 0
    org-catch-invisible-edits 'show
    org-pretty-entities nil
-   org-hide-emphasis-markers t))
+   org-hide-emphasis-markers nil)
+  (global-org-modern-mode))
 #+end_src
 
 *** org-modern-indent
@@ -1000,7 +1007,9 @@ Org modern will disable pre
     (meow-motion-define-key
      '("j" . meow-next)
      '("k" . meow-prev)
-     '("<escape>" . ignore))
+     '("<escape>" . ignore)
+     '("<" . previous-buffer)
+     '(">" . next-buffer))
 
     ;; SPC enters the keypad.  SPC ? is the cheat sheet; SPC / explains a key.
     (meow-leader-define-key
@@ -1015,17 +1024,26 @@ Org modern will disable pre
      '("9" . meow-digit-argument)
      '("0" . meow-digit-argument)
      '("k" . kill-buffer-and-window)
+     '("a" . gptel-add)
+     '("R" . gptel-rewrite)
+     '("G" . gptel)
      '("o" . other-window)
      '("b" . switch-to-buffer)
      '("B" . ibuffer)
      '("d" . eldoc)
+     '(";" . my-gptel-ask)
+     '(":" . gptel-menu)
      (cons "e" my/flymake-command-map)
+     (cons "r" my/bookmark-command-map)
      (cons "l" my/eglot-command-map)
      (cons "v" my/visual-command-map)
      (cons "w" window-prefix-map)
      '("/" . meow-keypad-describe-key)
      '("?" . meow-cheatsheet))
-
+    
+    (meow-motion-define-key
+     '(":" . recenter-top-bottom))
+    
     (meow-normal-define-key
      '("0" . meow-expand-0)
      '("9" . meow-expand-9)
@@ -1092,7 +1110,10 @@ Org modern will disable pre
      '("Y" . meow-sync-grab)
      '("z" . meow-pop-selection)
      '("'" . repeat)
-     '("<escape>" . ignore)))
+     '("<" . previous-buffer)
+     '(">" . next-buffer)
+     '("<escape>" . ignore)
+     ))
 
   (my/meow-setup)
   ;; Your normal mode line is hidden, so this produces only a compact Meow
@@ -1143,8 +1164,7 @@ Org modern will disable pre
 #+begin_src emacs-lisp
 (use-package toc-org
   :ensure t
-  :commands toc-org-enable
-  :init (add-hook 'org-mode-hook 'toc-org-enable))
+  :hook (org-mode . toc-org-mode))
 #+end_src
 
 *** popper
@@ -1246,6 +1266,7 @@ Org modern will disable pre
   (add-hook 'org-journal-mode-hook
             (lambda ()
 	      (org-indent-mode -1)	;if org-startup-indent is t
+              (org-modern-indent-mode -1)
               (let ((h (face-attribute 'default :height)))
                 (face-remap-add-relative 'org-level-2 :height h :underline nil)
                 (face-remap-add-relative 'org-level-3 :height h)
@@ -1277,33 +1298,6 @@ Org modern will disable pre
               (font-lock-flush))))
 
 (global-set-key (kbd "C-c j") 'org-journal-new-entry)
-#+end_src
-
-*** org-roam
-#+begin_src emacs-lisp
-(use-package org-roam
-  :ensure t
-  :custom
-  (org-roam-directory (file-truename "~/Org/Notes/"))
-  :bind (("C-c n l" . org-roam-buffer-toggle)
-         ("C-c n f" . org-roam-node-find)
-         ("C-c n i" . org-roam-node-insert))
-  :config
-  (org-roam-db-autosync-mode)
-  ;; templates
-  (setq org-roam-capture-templates
-        '(("k" "knowledge" plain "%?"
-           :if-new (file+head "~/Org/Notes/Knowledge/%<%Y%m%d%H%M%S>-${slug}.org"
-                              "#+title: ${title}\n")
-           :unnarrowed t)
-          ("c" "capture" plain "%?"
-           :if-new (file+head "~/Org/Notes/Capture/%<%Y%m%d%H%M%S>-${slug}.org"
-                              "#+title: ${title}\n")
-           :unnarrowed t)
-          )
-        )
-  ;; If using org-roam-protocol
-  (require 'org-roam-protocol))
 #+end_src
 
 *** denote
@@ -1378,91 +1372,10 @@ sudo pacman -S enchant hunspell hunspell-en_us
 #+end_src
 
 ** LLM
-Ollama-cuda must be installed on the system and ollama.service need to be enabled.
-*** gptel
+LLM configuration is long and changes often, so we organize it in another file.
 #+begin_src emacs-lisp
-(use-package gptel
-  :ensure t
-  :config
-  (setq
-   gptel-model 'gemma4:31b-cloud
-   gptel-backend
-   (gptel-make-ollama "Ollama (local)"
-     :host "localhost:11434"
-     :stream t
-     :models '((translategemma:4b)
-               (gemma4:e4b)
-               (gemma4:31b-cloud)))
-   gptel-default-mode 'org-mode)
-
-  :bind
-  ("C-c g" . gptel)
-  )
-
-(defvar my/gptel-translate-buffer-name "*gptel-translate*")
-
-(defvar my/gptel-translate-system-prompt
-  "Respond concisely. Translate the user's text naturally and accurately.
-If the input is Japanese, translate it to English and Chinese.
-If the input is English, translate it to Japanese and Chinese.
-Keep technical terms precise. If text is a single word, provide dictionary-like information and give example sentence. (Use \\(\\) for LaTex")
-
-(defun my/gptel-translate-buffer ()
-  "Translate region or word at point in a dedicated gptel buffer."
-  (interactive)
-  (require 'gptel)
-  (let ((text
-         (if (use-region-p)
-             (buffer-substring-no-properties (region-beginning) (region-end))
-           (thing-at-point 'word t))))
-    (unless text
-      (user-error "No region or word at point"))
-    (let ((buf (gptel my/gptel-translate-buffer-name nil nil nil)))
-      (with-current-buffer buf
-        (goto-char (point-max))
-        (unless (bobp)
-          (insert "\n\n"))
-        (insert text)
-        (goto-char (point-max))
-        (let ((gptel--system-message my/gptel-translate-system-prompt)
-              (gptel-use-context nil)
-              (gptel-use-tools nil))
-          (gptel-send nil)))
-      (pop-to-buffer buf))))
-(global-set-key (kbd "M-i") #'my/gptel-translate-buffer)
-#+end_src
-
-*** gptel-quick
-#+begin_src emacs-lisp
-(use-package gptel-quick
-  :ensure t
-  :vc "https://github.com/karthink/gptel-quick"
-  :after gptel
-  :bind ("C-c q" . gptel-quick)
-  :config
-  (let ((ollama-backend (gptel-make-ollama "Ollama"
-                          :host "localhost:11434"
-                          :stream t
-                          :models '("gemma4:31b-cloud"))))
-    
-    ;; Both must be set together to avoid the error
-    (setq gptel-quick-backend ollama-backend
-          gptel-quick-model "gemma4:31b-cloud"))
-  (setq gptel-quick-timeout 3600)
-  )
-#+end_src
-
-*** codex
-#+begin_src emacs-lisp
-(use-package codex
-  :vc (:url "https://github.com/benthamite/codex")
-  :custom
-  (codex-terminal-backend 'app-server)
-  (codex-app-server-render-markdown t)
-  :config
-  (with-eval-after-load 'org-latex-preview-plus
-    (require 'org-latex-preview-codex)
-    (org-latex-preview-codex-enable)))
+(load (expand-file-name "lisp/llm/llm-config.el"
+			user-emacs-directory))
 #+end_src
 
 ** Misc
@@ -1501,4 +1414,22 @@ Run the command to open a minibuffer to launch apps. This won't work well withou
 (use-package uniline
   :ensure t
   :bind ("C-c u" . uniline-mode))
+#+end_src
+
+*** better-todo
+#+begin_src emacs-lisp
+(load (expand-file-name "~/Projects/better_todo/better-todo.el")
+      nil 'nomessage)
+#+end_src
+
+*** test pdf
+#+begin_src emacs-lisp
+(use-package pdf-tools
+  :ensure t)
+
+(use-package pdf-text
+  :ensure t
+  :vc (:url "https://github.com/agzam/pdf-text"
+       :branch "main"
+       :rev :newest))
 #+end_src
